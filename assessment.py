@@ -57,7 +57,6 @@ result = {
 
 REPORTS.mkdir(parents=True, exist_ok=True)
 report_json = REPORTS / f"{result['assessment_id']}.json"
-report_md = REPORTS / f"{result['assessment_id']}.md"
 report_json.write_text(json.dumps(result, indent=2))
 
 lines = [
