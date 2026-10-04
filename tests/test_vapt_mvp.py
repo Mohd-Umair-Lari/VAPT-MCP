@@ -5,7 +5,6 @@ from pathlib import Path
 
 import vapt_mvp
 
-
 class VaptMvpTests(unittest.TestCase):
     def test_authorized_config_loads(self):
         config = vapt_mvp.load_config(Path(__file__).parents[1] / "config.json")
