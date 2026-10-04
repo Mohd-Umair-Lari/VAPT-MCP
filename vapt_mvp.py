@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_CONFIG = Path(__file__).with_name("config.json")
-DEFAULT_REPORT_DIR = "/home/kali/Projects/VAPT-MCP/reports"
+DEFAULT_REPORT_DIR = Path(__file__).resolve().parent / "reports"
 REQUIRED_HEADERS = {
     "content-security-policy": ("Missing Content-Security-Policy header", "medium"),
     "x-frame-options": ("Missing X-Frame-Options header", "low"),

@@ -7,7 +7,7 @@ from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 
 ALLOWED_TARGETS = {"192.168.56.102:3000"}
-REPORTS = Path.home() / "vapt-mvp" / "reports"
+REPORTS = "./reports"
 
 def blocked(target, reason):
     print(json.dumps({"status": "DENIED", "target": target, "reason": reason}, indent=2))
