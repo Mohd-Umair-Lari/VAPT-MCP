@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_CONFIG = Path(__file__).with_name("config.json")
-DEFAULT_REPORT_DIR = Path.home() / "vapt-mvp" / "reports"
+DEFAULT_REPORT_DIR = "/home/kali/Projects/VAPT-MCP/reports"
 REQUIRED_HEADERS = {
     "content-security-policy": ("Missing Content-Security-Policy header", "medium"),
     "x-frame-options": ("Missing X-Frame-Options header", "low"),
@@ -61,8 +61,8 @@ def load_config(path: Path) -> dict[str, Any]:
     required = {"scheme", "host", "port", "base_path"}
     if not required.issubset(target):
         raise ValueError("config target must include scheme, host, port, and base_path")
-    if target["scheme"] != "http" or target["host"] != "192.168.56.102" or int(target["port"]) != 3000:
-        raise ValueError("allowlist violation: only http://192.168.56.102:3000 is authorized")
+    if target["scheme"] != "http" or target["host"] != "192.168.56.101" or int(target["port"]) != 3000:
+        raise ValueError("allowlist violation: only http://192.168.56.101:3000 is authorized")
     return config
 
 
