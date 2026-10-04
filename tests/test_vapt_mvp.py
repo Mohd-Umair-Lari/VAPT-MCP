@@ -1,9 +1,13 @@
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+# Allow direct execution with: python tests/test_vapt_mvp.py
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import vapt_mvp
+
 
 class VaptMvpTests(unittest.TestCase):
     def test_authorized_config_loads(self):
