@@ -7,6 +7,7 @@ from pathlib import Path
 # Allow direct execution with: python tests/test_vapt_mvp.py
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import vapt_mvp
+import mcp_tools
 
 
 class VaptMvpTests(unittest.TestCase):
@@ -62,6 +63,15 @@ class VaptMvpTests(unittest.TestCase):
             self.assertTrue(json_path.exists())
             self.assertTrue(markdown_path.exists())
             self.assertEqual(json.loads(json_path.read_text(encoding="utf-8"))["assessment_id"], "assessment-test")
+
+    def test_mcp_scope_is_restricted(self):
+        scope = mcp_tools.vapt_scope()
+        self.assertEqual(scope["target"]["host"], "192.168.56.101")
+        self.assertFalse(scope["intrusive_testing"])
+
+    def test_mcp_rejects_unknown_tool(self):
+        with self.assertRaises(ValueError):
+            mcp_tools.call_tool("shell_command")
 
 
 if __name__ == "__main__":
