@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import vapt_mvp
 import mcp_tools
 import agent_workflow
+import automation
 
 
 class VaptMvpTests(unittest.TestCase):
@@ -83,6 +84,14 @@ class VaptMvpTests(unittest.TestCase):
     def test_agent_rejects_intrusive_request(self):
         plan = agent_workflow.make_plan("exploit the target")
         self.assertEqual(plan["status"], "rejected")
+
+    def test_automation_compares_findings(self):
+        previous = {"findings": [{"finding_id": "old"}, {"finding_id": "same"}]}
+        current = {"findings": [{"finding_id": "new"}, {"finding_id": "same"}]}
+        comparison = automation.compare_reports(previous, current)
+        self.assertEqual(comparison["new_findings"], ["new"])
+        self.assertEqual(comparison["resolved_findings"], ["old"])
+        self.assertTrue(comparison["meaningful_change"])
 
 
 if __name__ == "__main__":
