@@ -8,6 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import vapt_mvp
 import mcp_tools
+import agent_workflow
 
 
 class VaptMvpTests(unittest.TestCase):
@@ -72,6 +73,16 @@ class VaptMvpTests(unittest.TestCase):
     def test_mcp_rejects_unknown_tool(self):
         with self.assertRaises(ValueError):
             mcp_tools.call_tool("shell_command")
+
+    def test_agent_plan_requires_approval(self):
+        plan = agent_workflow.make_plan("run a safe assessment")
+        self.assertEqual(plan["status"], "awaiting_approval")
+        result = agent_workflow.execute_approved(plan, False)
+        self.assertEqual(result["status"], "cancelled")
+
+    def test_agent_rejects_intrusive_request(self):
+        plan = agent_workflow.make_plan("exploit the target")
+        self.assertEqual(plan["status"], "rejected")
 
 
 if __name__ == "__main__":
