@@ -1,9 +1,3 @@
-"""MCP-facing adapter for the safe VAPT MVP operations.
-
-This module keeps the tool boundary separate from the assessment engine. An MCP
-server or host integration can call these functions without gaining arbitrary
-command execution or arbitrary-target access.
-"""
 from __future__ import annotations
 
 import json

@@ -10,6 +10,7 @@ import vapt_mvp
 import mcp_tools
 import agent_workflow
 import automation
+import llm_workflow
 
 
 class VaptMvpTests(unittest.TestCase):
@@ -92,6 +93,20 @@ class VaptMvpTests(unittest.TestCase):
         self.assertEqual(comparison["new_findings"], ["new"])
         self.assertEqual(comparison["resolved_findings"], ["old"])
         self.assertTrue(comparison["meaningful_change"])
+
+    def test_llm_session_requires_approval(self):
+        session = llm_workflow.VaptSession("test-session")
+        plan = session.start("assess my authorized lab")
+        self.assertEqual(plan["status"], "awaiting_approval")
+        self.assertEqual(session.snapshot()["state"], "awaiting_approval")
+        result = session.approve(False)
+        self.assertEqual(result["status"], "cancelled")
+
+    def test_llm_session_rejects_intrusive_request(self):
+        session = llm_workflow.VaptSession()
+        result = session.start("run an exploit payload")
+        self.assertEqual(result["status"], "rejected")
+        self.assertEqual(session.snapshot()["state"], "rejected")
 
 
 if __name__ == "__main__":
