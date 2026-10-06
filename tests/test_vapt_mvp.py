@@ -11,6 +11,7 @@ import mcp_tools
 import agent_workflow
 import automation
 import llm_workflow
+import scheduler
 
 
 class VaptMvpTests(unittest.TestCase):
@@ -107,6 +108,16 @@ class VaptMvpTests(unittest.TestCase):
         result = session.start("run an exploit payload")
         self.assertEqual(result["status"], "rejected")
         self.assertEqual(session.snapshot()["state"], "rejected")
+
+    def test_scheduler_is_disabled_by_default(self):
+        result = scheduler.run_once(scheduler.Schedule(), lambda previous: {"unused": previous})
+        self.assertEqual(result["status"], "disabled")
+
+    def test_scheduler_runs_explicit_foreground_iterations(self):
+        schedule = scheduler.Schedule(enabled=True, interval_minutes=1)
+        result = scheduler.run_foreground(schedule, lambda previous: {"ok": True}, lambda seconds: None, max_runs=2)
+        self.assertEqual(len(result), 2)
+        self.assertTrue(result[0]["run"]["ok"])
 
 
 if __name__ == "__main__":
