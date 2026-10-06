@@ -12,6 +12,7 @@ import agent_workflow
 import automation
 import llm_workflow
 import scheduler
+import history
 
 
 class VaptMvpTests(unittest.TestCase):
@@ -118,6 +119,21 @@ class VaptMvpTests(unittest.TestCase):
         result = scheduler.run_foreground(schedule, lambda previous: {"ok": True}, lambda seconds: None, max_runs=2)
         self.assertEqual(len(result), 2)
         self.assertTrue(result[0]["run"]["ok"])
+
+    def test_history_records_and_alerts_on_changes(self):
+        assessment = {"assessment_id": "a1", "completed_at_utc": "now", "status": "completed", "summary": {}, "findings": [{"finding_id": "new-finding"}]}
+        with tempfile.TemporaryDirectory() as directory:
+            result = history.record_assessment(assessment, Path(directory) / "history.json")
+            self.assertTrue(result["alert"]["notify"])
+            self.assertEqual(result["alert"]["new_findings"], ["new-finding"])
+
+    def test_history_is_quiet_when_findings_are_unchanged(self):
+        assessment = {"assessment_id": "a1", "completed_at_utc": "now", "status": "completed", "summary": {}, "findings": [{"finding_id": "same"}]}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "history.json"
+            history.record_assessment(assessment, path)
+            result = history.record_assessment({**assessment, "assessment_id": "a2"}, path)
+            self.assertFalse(result["alert"]["notify"])
 
 
 if __name__ == "__main__":
