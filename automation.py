@@ -23,6 +23,9 @@ def compare_reports(previous: dict[str, Any], current: dict[str, Any]) -> dict[s
 
 def run_automation(previous_report: str | Path | None = None) -> dict[str, Any]:
     result = mcp_tools.vapt_assess(); comparison = None
+    current = result["assessment"]
     if previous_report:
-        comparison = compare_reports(load_report(previous_report), result["assessment"])
+        comparison = compare_reports(load_report(previous_report), current)
+    elif result.get("history"):
+        comparison = result["history"].get("entry", {}).get("comparison")
     return {"assessment": result, "comparison": comparison}

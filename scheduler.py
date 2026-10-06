@@ -19,14 +19,16 @@ def load_schedule(path: Path) -> Schedule:
 
 def run_once(schedule: Schedule, runner: Callable[[str | None], dict[str, Any]] = automation.run_automation) -> dict[str, Any]:
     if not schedule.enabled: return {"status": "disabled", "message": "Scheduling is disabled in schedule.json."}
-    return {"status": "completed", "run": runner(schedule.previous_report)}
+    run = runner(schedule.previous_report)
+    return {"status": "completed", "run": run, "alert": run.get("assessment", {}).get("history", {}).get("alert")}
 
 def run_foreground(schedule: Schedule, runner: Callable[[str | None], dict[str, Any]] = automation.run_automation,
                    sleep_fn: Callable[[float], None] = time.sleep, max_runs: int | None = None) -> list[dict[str, Any]]:
     if not schedule.enabled: return [{"status": "disabled", "message": "Scheduling is disabled in schedule.json."}]
     results = []; count = 0
     while max_runs is None or count < max_runs:
-        results.append({"status": "completed", "run": runner(schedule.previous_report)}); count += 1
+        run = runner(schedule.previous_report)
+        results.append({"status": "completed", "run": run, "alert": run.get("assessment", {}).get("history", {}).get("alert")}); count += 1
         if max_runs is None or count < max_runs: sleep_fn(schedule.interval_minutes * 60)
     return results
 

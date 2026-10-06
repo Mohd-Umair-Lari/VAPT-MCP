@@ -1,4 +1,5 @@
 """Provider-neutral interactive workflow for an LLM-controlled VAPT session.
+
 The model supplies intent and receives structured state. This module enforces
 the workflow rules; it does not execute arbitrary model-generated code.
 """
@@ -9,6 +10,7 @@ from typing import Any
 
 import agent_workflow
 import mcp_tools
+
 
 @dataclass
 class Session:
@@ -54,3 +56,4 @@ class VaptSession:
             "plan": self.session.plan,
             "has_result": self.session.last_result is not None,
         }
+

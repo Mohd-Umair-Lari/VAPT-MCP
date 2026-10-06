@@ -1,3 +1,9 @@
+"""MCP-facing adapter for the safe VAPT MVP operations.
+
+This module keeps the tool boundary separate from the assessment engine. An MCP
+server or host integration can call these functions without gaining arbitrary
+command execution or arbitrary-target access.
+"""
 from __future__ import annotations
 
 import json
@@ -39,10 +45,14 @@ def vapt_assess(config_path: str | None = None, report_dir: str | None = None) -
     json_path, markdown_path = vapt_mvp.write_reports(
         assessment, Path(report_dir) if report_dir else vapt_mvp.DEFAULT_REPORT_DIR
     )
-    return {
-        "assessment": vapt_mvp.asdict(assessment),
-        "reports": {"json": str(json_path), "markdown": str(markdown_path)},
-    }
+    assessment_data = vapt_mvp.asdict(assessment)
+    # Lazy import avoids coupling the assessment engine to persistence while
+    # ensuring every tool-triggered run is recorded automatically.
+    import history
+    history_result = history.record_assessment(assessment_data, Path(report_dir or vapt_mvp.DEFAULT_REPORT_DIR) / "history.json")
+    return {"assessment": assessment_data,
+            "reports": {"json": str(json_path), "markdown": str(markdown_path)},
+            "history": history_result}
 
 
 def call_tool(name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:

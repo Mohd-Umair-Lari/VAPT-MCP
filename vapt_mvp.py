@@ -146,7 +146,8 @@ def run_assessment(config: dict[str, Any]) -> Assessment:
     started = utc_now(); target = config["target"]; agent = config.get("user_agent", "VAPT-MVP-Lab/0.1")
     assessment = Assessment(datetime.now(timezone.utc).strftime("assessment-%Y%m%dT%H%M%SZ"), started, None,
         {**target, "url": target_url(target)}, "running",
-        ["scope_allowlist", "http_get", "security_headers", "safe_recon"])
+        ["scope_allowlist", "http_get", "security_headers", "safe_recon", "passive_verification",
+         "configuration_checks", "evidence_and_remediation", "report_summary"])
     request = urllib.request.Request(assessment.target["url"], headers={"User-Agent": agent})
     try:
         with urllib.request.urlopen(request, timeout=float(config.get("timeout_seconds", 10))) as response:
