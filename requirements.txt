@@ -1,1 +1,4 @@
-# Phase 1 uses only Python's standard library.
+# Phase 1 (passive MVP) uses only the Python standard library.
+# Active phases and the MCP server plugin add:
+requests>=2.31
+mcp>=2.3

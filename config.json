@@ -1,5 +1,17 @@
 {
   "target": {"scheme": "http", "host": "192.168.56.101", "port": 3000, "base_path": "/"},
   "timeout_seconds": 10,
-  "user_agent": "VAPT-MVP-Lab/0.1"
+  "user_agent": "VAPT-Lab/0.2",
+  "active": {
+    "enabled": true,
+    "rate_limit_per_second": 3,
+    "max_response_bytes": 1048576,
+    "phases": {"recon": true, "detect": true, "exploit": false},
+    "require_exploit_approval": true,
+    "weak_login_candidates": [
+      {"email": "admin@juice-sh.op", "password": "admin"},
+      {"email": "admin@juice-sh.op", "password": "password"},
+      {"email": "test@test.com", "password": "test"}
+    ]
+  }
 }
