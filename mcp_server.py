@@ -10,7 +10,26 @@ import json
 from pathlib import Path
 from typing import Any
 
-from mcp.server.mcpserver import MCPServer
+try:
+    from mcp.server.mcpserver import MCPServer
+except ModuleNotFoundError as error:
+    if error.name != "mcp":
+        raise
+
+    class MCPServer:  # type: ignore[no-redef]
+        """Import-safe fallback for offline tests when the MCP SDK is absent."""
+        def __init__(self, name: str):
+            self.name = name
+            self.tools = {}
+
+        def tool(self, description: str = ""):
+            def decorator(function):
+                self.tools[function.__name__] = {"description": description, "function": function}
+                return function
+            return decorator
+
+        def run(self):
+            raise RuntimeError("MCP SDK is required to run the server. Install it with: python3 -m pip install -r requirements.txt")
 
 import approval
 import orchestrator
