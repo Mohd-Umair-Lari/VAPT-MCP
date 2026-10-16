@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vapt-mvp-lab"
+version = "0.1.0"
+description = "Safe, allowlisted VAPT assessment MVP for an authorized local lab"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+vapt-mvp = "vapt_mvp:main"
+vapt-mcp-tools = "mcp_tools:main"
+
+[tool.unittest]
+test-directory = "tests"
