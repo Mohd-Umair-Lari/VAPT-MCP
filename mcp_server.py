@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import history
+import harness
 import mcp_tools
 import vapt_mvp
 
@@ -33,6 +34,13 @@ TOOLS = [
      "inputSchema": {"type": "object", "required": ["job_id"], "properties": {"job_id": {"type": "string"}}, "additionalProperties": False}},
     {"name": "vapt_get_history", "description": "Return compact local assessment history and change alerts.",
      "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
+    {"name": "vapt_exec_command", "description": "Run an allowlisted command against the authorized target.",
+     "inputSchema": {"type": "object", "required": ["argv"], "properties": {
+         "argv": {"type": "array", "items": {"type": "string"}},
+         "mode": {"type": "string", "enum": ["passive", "active"]},
+         "approved": {"type": "boolean"}}, "additionalProperties": False}},
+    {"name": "vapt_get_command_output", "description": "Read status and output for a command job.",
+     "inputSchema": {"type": "object", "required": ["job_id"], "properties": {"job_id": {"type": "string"}}, "additionalProperties": False}},
 ]
 
 
@@ -90,6 +98,10 @@ def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         return job["result"]
     if name == "vapt_get_history":
         return {"history": history.load_history()}
+    if name == "vapt_exec_command":
+        return harness.DEFAULT_HARNESS.start(arguments["argv"], arguments.get("mode", "passive"), bool(arguments.get("approved", False)))
+    if name == "vapt_get_command_output":
+        return harness.DEFAULT_HARNESS.status(arguments["job_id"])
     raise ValueError(f"Unknown tool: {name}")
 
 
