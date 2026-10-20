@@ -13,6 +13,8 @@ import automation
 import llm_workflow
 import scheduler
 import history
+import mcp_server
+import harness
 
 
 class VaptMvpTests(unittest.TestCase):
@@ -23,7 +25,7 @@ class VaptMvpTests(unittest.TestCase):
 
     def test_allowlist_rejects_wrong_host(self):
         config = {"target": {"scheme": "http", "host": "192.168.56.102", "port": 3000, "base_path": "/"}}
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]) as directory:
             path = Path(directory) / "config.json"
             path.write_text(json.dumps(config), encoding="utf-8")
             with self.assertRaises(ValueError):
@@ -63,7 +65,7 @@ class VaptMvpTests(unittest.TestCase):
 
     def test_reports_write_to_requested_directory(self):
         assessment = vapt_mvp.Assessment("assessment-test", "now", "later", {"url": "http://example/"}, "completed")
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]) as directory:
             json_path, markdown_path = vapt_mvp.write_reports(assessment, Path(directory) / "reports")
             self.assertTrue(json_path.exists())
             self.assertTrue(markdown_path.exists())
@@ -122,18 +124,41 @@ class VaptMvpTests(unittest.TestCase):
 
     def test_history_records_and_alerts_on_changes(self):
         assessment = {"assessment_id": "a1", "completed_at_utc": "now", "status": "completed", "summary": {}, "findings": [{"finding_id": "new-finding"}]}
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]) as directory:
             result = history.record_assessment(assessment, Path(directory) / "history.json")
             self.assertTrue(result["alert"]["notify"])
             self.assertEqual(result["alert"]["new_findings"], ["new-finding"])
 
     def test_history_is_quiet_when_findings_are_unchanged(self):
         assessment = {"assessment_id": "a1", "completed_at_utc": "now", "status": "completed", "summary": {}, "findings": [{"finding_id": "same"}]}
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]) as directory:
             path = Path(directory) / "history.json"
             history.record_assessment(assessment, path)
             result = history.record_assessment({**assessment, "assessment_id": "a2"}, path)
             self.assertFalse(result["alert"]["notify"])
+
+    def test_mcp_server_discovers_vapt_tools(self):
+        response = mcp_server.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+        names = {tool["name"] for tool in response["result"]["tools"]}
+        self.assertIn("vapt_start_assessment", names)
+        self.assertIn("vapt_get_history", names)
+
+    def test_mcp_server_initializes(self):
+        response = mcp_server.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+        self.assertEqual(response["result"]["serverInfo"]["name"], "vapt-mcp")
+
+    def test_harness_requires_target_and_allowlisted_tool(self):
+        runner = harness.Harness()
+        with self.assertRaises(ValueError):
+            runner.validate(["curl", "http://example.com"])
+        with self.assertRaises(ValueError):
+            runner.validate(["bash", "-c", "echo hi"])
+
+    def test_harness_requires_active_approval(self):
+        runner = harness.Harness()
+        with self.assertRaises(ValueError):
+            runner.validate(["curl", "http://192.168.56.101:3000/"], "active", False)
+        runner.validate(["curl", "http://192.168.56.101:3000/"], "active", True)
 
 
 if __name__ == "__main__":
