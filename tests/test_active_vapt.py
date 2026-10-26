@@ -172,7 +172,7 @@ class ActiveVaptTests(unittest.TestCase):
 
     def test_mcp_scope_tool(self):
         scope = mcp_server.vapt_scope()
-        self.assertEqual(scope["target"], "http://192.168.56.101:3000")
+        self.assertEqual(scope["target"], "http://192.168.56.102:3000")
         self.assertTrue(scope["exploit_requires_approval"])
 
     def test_mcp_exploit_refuses_without_token(self):

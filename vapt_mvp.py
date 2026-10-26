@@ -53,8 +53,8 @@ def load_config(path: Path) -> dict[str, Any]:
     target = config.get("target", {})
     if not {"scheme", "host", "port", "base_path"}.issubset(target):
         raise ValueError("config target must include scheme, host, port, and base_path")
-    if target["scheme"] != "http" or target["host"] != "192.168.56.101" or int(target["port"]) != 3000:
-        raise ValueError("allowlist violation: only http://192.168.56.101:3000 is authorized")
+    if target["scheme"] != "http" or target["host"] != "192.168.56.102" or int(target["port"]) != 3000:
+        raise ValueError("allowlist violation: only http://192.168.56.102:3000 is authorized")
     return config
 
 def target_url(target: dict[str, Any]) -> str:

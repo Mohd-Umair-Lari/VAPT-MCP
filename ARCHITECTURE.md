@@ -13,7 +13,7 @@ Agent request
 
 ## Safety boundaries
 
-- The target is fixed to `http://192.168.56.101:3000/`.
+- The target is fixed to `http://192.168.56.102:3000/`.
 - The assessment uses ordinary, non-intrusive HTTP requests.
 - No shell execution, arbitrary URLs, exploitation, fuzzing, or brute force is exposed.
 - Reports are written beside the code in `reports/`.

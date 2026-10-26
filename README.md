@@ -1,7 +1,7 @@
 # VAPT MVP — Phase 1
 
 This is a small, lab-only baseline for the authorized OWASP Juice Shop target:
-`http://192.168.56.101:3000/`.
+`http://192.168.56.102:3000/`.
 
 It performs one ordinary HTTP `GET /`, records the UTC time, status, and response headers, checks common safe configuration issues, and writes structured findings with evidence, confidence, remediation, and summary counts. Recon checks three fixed public files: `robots.txt`, `sitemap.xml`, and `.well-known/security.txt`. It does not exploit, fuzz, crawl, or send intrusive requests.
 
@@ -19,7 +19,7 @@ Reports are written to the local `reports/` folder beside `vapt_mvp.py` as match
 python vapt_mvp.py --report-dir .\reports
 ```
 
-The allowlist is in `config.json`. The runner refuses configurations other than the authorized lab host and port (`192.168.56.101:3000`). Keep this project limited to systems you own or have explicit permission to test.
+The allowlist is in `config.json`. The runner refuses configurations other than the authorized lab host and port (`192.168.56.102:3000`). Keep this project limited to systems you own or have explicit permission to test.
 
 ## Phase 1 layout
 
@@ -78,7 +78,7 @@ The adapter does not provide shell execution, arbitrary URLs, exploitation, Herm
 
 ## Agentic command harness
 
-`harness.py` adds the controlled workflow shown in the reference screenshots. Hermes can request an explicit argv command, receive a command job ID, poll its output, and choose the next step. Only allowlisted tools are accepted, network commands must include `192.168.56.101`, and active mode requires an explicit approval flag. Shell interpreters and destructive commands are blocked.
+`harness.py` adds the controlled workflow shown in the reference screenshots. Hermes can request an explicit argv command, receive a command job ID, poll its output, and choose the next step. Only allowlisted tools are accepted, network commands must include `192.168.56.102`, and active mode requires an explicit approval flag. Shell interpreters and destructive commands are blocked.
 
 ## Final project files
 

@@ -7,7 +7,7 @@ a schedule.
 
 ## The one safety rule that never changes
 
-Everything is hard-locked to `http://192.168.56.101:3000`.
+Everything is hard-locked to `http://192.168.56.102:3000`.
 
 - `scope.py` is the single source of truth for the authorized target.
 - Every HTTP request goes through `http_client.py`, which refuses any other host,

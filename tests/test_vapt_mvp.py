@@ -20,11 +20,11 @@ import harness
 class VaptMvpTests(unittest.TestCase):
     def test_authorized_config_loads(self):
         config = vapt_mvp.load_config(Path(__file__).parents[1] / "config.json")
-        self.assertEqual(config["target"]["host"], "192.168.56.101")
-        self.assertEqual(vapt_mvp.target_url(config["target"]), "http://192.168.56.101:3000/")
+        self.assertEqual(config["target"]["host"], "192.168.56.102")
+        self.assertEqual(vapt_mvp.target_url(config["target"]), "http://192.168.56.102:3000/")
 
     def test_allowlist_rejects_wrong_host(self):
-        config = {"target": {"scheme": "http", "host": "192.168.56.102", "port": 3000, "base_path": "/"}}
+        config = {"target": {"scheme": "http", "host": "192.168.56.103", "port": 3000, "base_path": "/"}}
         with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]) as directory:
             path = Path(directory) / "config.json"
             path.write_text(json.dumps(config), encoding="utf-8")
@@ -48,8 +48,8 @@ class VaptMvpTests(unittest.TestCase):
     def test_phase4_detects_cookie_attributes(self):
         findings = vapt_mvp.assess_phase4(
             {"Set-Cookie": "session=abc; Path=/"},
-            "http://192.168.56.101:3000/",
-            "http://192.168.56.101:3000/",
+            "http://192.168.56.102:3000/",
+            "http://192.168.56.102:3000/",
         )
         finding_ids = {finding.finding_id for finding in findings}
         self.assertEqual(finding_ids, {"cookie-without-secure", "cookie-without-httponly", "cookie-without-samesite"})
@@ -73,7 +73,7 @@ class VaptMvpTests(unittest.TestCase):
 
     def test_mcp_scope_is_restricted(self):
         scope = mcp_tools.vapt_scope()
-        self.assertEqual(scope["target"]["host"], "192.168.56.101")
+        self.assertEqual(scope["target"]["host"], "192.168.56.102")
         self.assertFalse(scope["intrusive_testing"])
 
     def test_mcp_rejects_unknown_tool(self):
@@ -157,8 +157,8 @@ class VaptMvpTests(unittest.TestCase):
     def test_harness_requires_active_approval(self):
         runner = harness.Harness()
         with self.assertRaises(ValueError):
-            runner.validate(["curl", "http://192.168.56.101:3000/"], "active", False)
-        runner.validate(["curl", "http://192.168.56.101:3000/"], "active", True)
+            runner.validate(["curl", "http://192.168.56.102:3000/"], "active", False)
+        runner.validate(["curl", "http://192.168.56.102:3000/"], "active", True)
 
 
 if __name__ == "__main__":

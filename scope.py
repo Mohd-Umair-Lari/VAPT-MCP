@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from urllib.parse import urlparse
 
 # The one and only authorized engagement target.
-AUTHORIZED = {"scheme": "http", "host": "192.168.56.101", "port": 3000}
+AUTHORIZED = {"scheme": "http", "host": "192.168.56.102", "port": 3000}
 
 
 class ScopeViolation(Exception):
@@ -57,4 +57,4 @@ def assert_config_authorized(target: dict) -> None:
         or target.get("host") != AUTHORIZED["host"]
         or int(target.get("port", 0)) != AUTHORIZED["port"]
     ):
-        raise ScopeViolation("allowlist violation: only http://192.168.56.101:3000 is authorized")
+        raise ScopeViolation("allowlist violation: only http://192.168.56.102:3000 is authorized")
