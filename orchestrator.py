@@ -105,14 +105,18 @@ def run(config: dict[str, Any], scope: Scope | None = None, client: HttpClient |
     assessment.status = "completed" if not assessment.errors else "completed_with_errors"
     vapt_mvp.finish_summary(assessment)
     assessment.summary["pending_exploits"] = pending
-    assessment.summary["exploit_status"] = reason
+    if assessment.errors and want_exploit and approved:
+        assessment.summary["exploit_status"] = "completed_with_errors"
+    else:
+        assessment.summary["exploit_status"] = reason
     assessment.completed_at_utc = vapt_mvp.utc_now()
 
     data = vapt_mvp.asdict(assessment)
     json_path, md_path = vapt_mvp.write_reports(assessment, report_dir)
     hist = history.record_assessment(data, report_dir / "history.json")
+    exploit_status = assessment.summary["exploit_status"]
     return {"assessment": data, "reports": {"json": str(json_path), "markdown": str(md_path)},
-            "history": hist, "pending_exploits": pending, "exploit_status": reason}
+            "history": hist, "pending_exploits": pending, "exploit_status": exploit_status}
 
 
 def _cli_run(exploit: bool) -> dict[str, Any]:

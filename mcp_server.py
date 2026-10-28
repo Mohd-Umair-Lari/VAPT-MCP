@@ -111,7 +111,8 @@ def run_job(job_id: str) -> None:
             JOBS[job_id]["status"] = "running"
         output = mcp_tools.vapt_assess()
         with LOCK:
-            JOBS[job_id].update(status="completed", result=output)
+            assessment_status = output.get("assessment", {}).get("status", "completed")
+            JOBS[job_id].update(status=assessment_status, result=output)
     except Exception as error:
         with LOCK:
             JOBS[job_id].update(status="failed", error=str(error))
@@ -146,7 +147,7 @@ def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         return {key: value for key, value in job.items() if key not in {"result"}}
     if name == "vapt_get_report":
         job = get_job(arguments["job_id"])
-        if job["status"] != "completed":
+        if job["status"] not in {"completed", "completed_with_errors", "failed"}:
             return {"job_id": arguments["job_id"], "status": job["status"], "message": "Report is not ready."}
         return job["result"]
     if name == "vapt_get_history":

@@ -162,6 +162,22 @@ class ActiveVaptTests(unittest.TestCase):
         ids = {f["finding_id"] for f in result["assessment"]["findings"]}
         self.assertNotIn("sqli-auth-bypass", ids)
         self.assertTrue(result["pending_exploits"])
+
+    def test_orchestrator_marks_approved_timeout_as_error(self):
+        class FailingClient:
+            def get(self, path):
+                raise TimeoutError("target timed out")
+
+            def post(self, path, **kwargs):
+                raise TimeoutError("target timed out")
+
+        config = self._config(exploit=True)
+        token = approval.request_approval(Scope.authorized_lab().base_url())["token"]
+        with TemporaryDirectory() as tmp:
+            result = orchestrator.run(config, scope=Scope.authorized_lab(), client=FailingClient(),
+                                      approval_token=token, report_dir=tmp)
+        self.assertEqual(result["assessment"]["status"], "completed_with_errors")
+        self.assertEqual(result["exploit_status"], "completed_with_errors")
     def test_orchestrator_exploits_when_approval_not_required(self):
         with TemporaryDirectory() as tmp:
             result = orchestrator.run(self._config(exploit=True, require_approval=False),
