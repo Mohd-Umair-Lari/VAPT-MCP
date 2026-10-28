@@ -179,6 +179,19 @@ class ActiveVaptTests(unittest.TestCase):
         result = mcp_server.vapt_exploit("not-a-real-token")
         self.assertEqual(result["status"], "refused")
 
+    def test_mcp_exploit_requires_execution_confirmation(self):
+        result = mcp_server.vapt_exploit("not-a-real-token", "")
+        self.assertEqual(result["status"], "refused")
+
+    def test_mcp_lists_active_actions_without_executing(self):
+        result = mcp_server.vapt_list_active_actions()
+        self.assertFalse(result["executed"])
+        self.assertTrue(result["actions"])
+
+    def test_mcp_approval_requires_explicit_phrase(self):
+        result = mcp_server.request_exploit_approval()
+        self.assertEqual(result["status"], "pending")
+
 
 if __name__ == "__main__":
     unittest.main()

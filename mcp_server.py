@@ -41,15 +41,17 @@ TOOLS = [
      "inputSchema": {"type": "object", "required": ["argv"], "properties": {
          "argv": {"type": "array", "items": {"type": "string"}},
          "mode": {"type": "string", "enum": ["passive", "active"]},
-         "approved": {"type": "boolean"}}, "additionalProperties": False}},
+         "approval_token": {"type": "string"}}, "additionalProperties": False}},
     {"name": "vapt_get_command_output", "description": "Read status and output for a command job.",
      "inputSchema": {"type": "object", "required": ["job_id"], "properties": {"job_id": {"type": "string"}}, "additionalProperties": False}},
     {"name": "vapt_detect", "description": "Run recon and detection without exploitation.",
      "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
     {"name": "request_exploit_approval", "description": "Create a human approval token for active verification.",
-     "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
+     "inputSchema": {"type": "object", "required": ["confirmation"], "properties": {"confirmation": {"type": "string"}}, "additionalProperties": False}},
     {"name": "vapt_exploit", "description": "Run active verification with a valid approval token.",
-     "inputSchema": {"type": "object", "required": ["approval_token"], "properties": {"approval_token": {"type": "string"}}, "additionalProperties": False}},
+     "inputSchema": {"type": "object", "required": ["approval_token", "confirmation"], "properties": {"approval_token": {"type": "string"}, "confirmation": {"type": "string"}}, "additionalProperties": False}},
+    {"name": "vapt_list_active_actions", "description": "List active verification actions without executing them.",
+     "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
 ]
 
 
@@ -73,11 +75,28 @@ def vapt_detect() -> dict[str, Any]:
     return orchestrator.run(config, scope=Scope.authorized_lab())
 
 
-def request_exploit_approval() -> dict[str, Any]:
+APPROVAL_PHRASE = "APPROVE ACTIVE TEST 192.168.56.102:3000"
+
+
+def request_exploit_approval(confirmation: str = "") -> dict[str, Any]:
+    if confirmation.strip() != APPROVAL_PHRASE:
+        return {"status": "pending", "message": f"Human confirmation required. Repeat exactly: {APPROVAL_PHRASE}"}
     return approval.request_approval(Scope.authorized_lab().base_url())
 
 
-def vapt_exploit(approval_token: str) -> dict[str, Any]:
+def vapt_list_active_actions() -> dict[str, Any]:
+    return {"target": Scope.authorized_lab().base_url(), "actions": [
+        {"id": "sqli-login-bypass", "description": "Verify whether a crafted login value returns a session token.", "requires_approval": True},
+        {"id": "jwt-none", "description": "Verify whether an unsigned JWT is accepted by a protected endpoint.", "requires_approval": True},
+        {"id": "idor-basket", "description": "Verify whether one session can access another basket identifier.", "requires_approval": True},
+        {"id": "weak-login", "description": "Verify configured lab-only weak credential candidates.", "requires_approval": True},
+    ], "executed": False}
+
+
+def vapt_exploit(approval_token: str, confirmation: str = "") -> dict[str, Any]:
+    if confirmation.strip() != APPROVAL_PHRASE:
+        return {"status": "refused", "reason": "Explicit execution confirmation is required.",
+                "hint": f"Repeat exactly only when ready: {APPROVAL_PHRASE}"}
     ok, reason = approval.validate(approval_token, Scope.authorized_lab().base_url())
     if not ok:
         return {"status": "refused", "reason": reason, "hint": "Call request_exploit_approval first."}
@@ -101,7 +120,7 @@ def run_job(job_id: str) -> None:
 def start_assessment(arguments: dict[str, Any]) -> dict[str, Any]:
     if arguments.get("mode", "passive") != "passive":
         raise ValueError("Only passive mode is available through this MCP server")
-    target = scope()["target"]["url"]
+    target = scope()["target"]
     job_id = "job-" + uuid.uuid4().hex[:12]
     with LOCK:
         JOBS[job_id] = {"job_id": job_id, "status": "queued", "target": target}
@@ -133,15 +152,22 @@ def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     if name == "vapt_get_history":
         return {"history": history.load_history()}
     if name == "vapt_exec_command":
-        return harness.DEFAULT_HARNESS.start(arguments["argv"], arguments.get("mode", "passive"), bool(arguments.get("approved", False)))
+        mode = arguments.get("mode", "passive")
+        approved = mode == "passive"
+        if mode == "active":
+            token = arguments.get("approval_token", "")
+            approved, _ = approval.validate(token, Scope.authorized_lab().base_url())
+        return harness.DEFAULT_HARNESS.start(arguments["argv"], mode, approved)
     if name == "vapt_get_command_output":
         return harness.DEFAULT_HARNESS.status(arguments["job_id"])
     if name == "vapt_detect":
         return vapt_detect()
     if name == "request_exploit_approval":
-        return request_exploit_approval()
+        return request_exploit_approval(arguments.get("confirmation", ""))
     if name == "vapt_exploit":
-        return vapt_exploit(arguments["approval_token"])
+        return vapt_exploit(arguments["approval_token"], arguments.get("confirmation", ""))
+    if name == "vapt_list_active_actions":
+        return vapt_list_active_actions()
     raise ValueError(f"Unknown tool: {name}")
 
 

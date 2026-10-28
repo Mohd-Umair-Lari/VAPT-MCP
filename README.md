@@ -74,7 +74,7 @@ The adapter does not provide shell execution, arbitrary URLs, exploitation, Herm
 
 ## Real MCP/Hermes integration
 
-`mcp_server.py` is the real stdio MCP server. `hermes-config.yaml.example` contains the Hermes server entry. The server exposes scope, background assessment, status, report, and history tools. It supports passive assessment mode only; exploit verification is not silently enabled.
+`mcp_server.py` is the real stdio MCP server. `hermes-config.yaml.example` contains the Hermes server entry. The server exposes scope, background assessment, status, report, history, and read-only active-action listing tools. Active verification requires both an approval token and the exact execution confirmation phrase; listing actions never executes them.
 
 ## Agentic command harness
 

@@ -12,5 +12,8 @@ mcp_servers:
         - vapt_get_status
         - vapt_get_report
         - vapt_get_history
+        - vapt_list_active_actions
+        - request_exploit_approval
+        - vapt_exploit
       resources: false
       prompts: false
