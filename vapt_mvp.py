@@ -58,8 +58,14 @@ def load_config(path: Path) -> dict[str, Any]:
     assert_config_authorized(target)
     return config
 
-def config_for_passive_url(url: str) -> dict[str, Any]:
-    """Build a one-run passive config for a public HTTP(S) URL."""
+def config_for_passive_url(url: str, allow_private: bool = False) -> dict[str, Any]:
+    """Build a one-run passive config for a public HTTP(S) URL.
+    
+    Args:
+        url: Target URL (scheme://host:port)
+        allow_private: If True, allow private IP ranges (for internal testing).
+                       Default False for internet-wide safety.
+    """
     from urllib.parse import urlparse
     parsed = urlparse(url.strip())
     if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
@@ -70,8 +76,9 @@ def config_for_passive_url(url: str) -> dict[str, Any]:
         addresses = {item[4][0] for item in socket.getaddrinfo(parsed.hostname, parsed.port, type=socket.SOCK_STREAM)}
     except OSError as error:
         raise ValueError(f"passive URL host could not be resolved: {error}") from error
-    if any(not ipaddress.ip_address(address).is_global for address in addresses):
-        raise ValueError("passive URL must resolve only to public internet addresses")
+    if not allow_private:
+        if any(not ipaddress.ip_address(address).is_global for address in addresses):
+            raise ValueError("passive URL must resolve only to public internet addresses (use allow_private=True for internal targets)")
     port = parsed.port or (443 if parsed.scheme == "https" else 80)
     return {"target": {"scheme": parsed.scheme, "host": parsed.hostname, "port": port, "base_path": "/"},
             "timeout_seconds": 10, "user_agent": "VAPT-MVP-Passive/0.3"}

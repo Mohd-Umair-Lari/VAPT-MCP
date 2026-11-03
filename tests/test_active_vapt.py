@@ -106,14 +106,14 @@ class ActiveVaptTests(unittest.TestCase):
         cls.server.shutdown()
 
     def client(self):
-        return HttpClient(Scope.for_testing("127.0.0.1", self.port), rate_limit_per_second=0, timeout=5)
+        return HttpClient(Scope.for_testing("127.0.0.1", self.port), rate_limit_per_second=0, timeout=5, allow_private_ips=True)
 
     def test_scope_blocks_out_of_scope(self):
         with self.assertRaises(ScopeViolation):
             Scope.from_url("http://example.com/").require("http://other-host.com/")
 
     def test_http_client_refuses_out_of_scope(self):
-        client = HttpClient(Scope.for_testing("127.0.0.1", self.port), rate_limit_per_second=0)
+        client = HttpClient(Scope.for_testing("127.0.0.1", self.port), rate_limit_per_second=0, allow_private_ips=True)
         with self.assertRaises(ScopeViolation):
             client.get("http://127.0.0.1:1/")
 

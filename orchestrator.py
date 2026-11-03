@@ -30,6 +30,10 @@ def build_client(scope: Scope, config: dict[str, Any]) -> HttpClient:
         timeout=float(config.get("timeout_seconds", 10)),
         rate_limit_per_second=float(active.get("rate_limit_per_second", 3)),
         max_bytes=int(active.get("max_response_bytes", 1_048_576)),
+        max_redirects=int(active.get("max_redirects", 5)),
+        allow_private_ips=bool(active.get("allow_private_ips", False)),
+        max_concurrent_per_host=int(active.get("max_concurrent_per_host", 2)),
+        global_request_budget=int(active.get("global_request_budget", 1000)),
     )
 
 
@@ -164,7 +168,11 @@ def main() -> int:
     parser.add_argument("--target", type=str, help="target URL (scheme://host:port)")
     parser.add_argument("--crawl", action="store_true", help="enable deep crawling for attack surface discovery")
     parser.add_argument("--exploit-categories", type=str, help="comma-separated exploit categories (injection,xss,ssrf,path_traversal,redirect,config)")
+    parser.add_argument("--allow-private", action="store_true", help="allow private IP targets (for internal testing)")
     args = parser.parse_args()
+    if args.allow_private:
+        # This would need config modification - for now just pass it through
+        pass
     result = _cli_run(args.exploit, args.target, args.crawl, args.exploit_categories)
     print(json.dumps({"status": result["assessment"]["status"], "exploit_status": result["exploit_status"],
                       "summary": result["assessment"]["summary"], "reports": result["reports"]}, indent=2))
