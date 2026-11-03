@@ -31,7 +31,7 @@ class CommandJob:
 
 
 class Harness:
-    def __init__(self, target_host: str = "192.168.56.102", target_port: int = 3000) -> None:
+    def __init__(self, target_host: str, target_port: int) -> None:
         self.target_host = target_host
         self.target = f"{target_host}:{target_port}"
         self.jobs: dict[str, CommandJob] = {}
@@ -81,4 +81,4 @@ class Harness:
             return vars(self.jobs[job_id]).copy()
 
 
-DEFAULT_HARNESS = Harness()
+DEFAULT_HARNESS = Harness("example.com", 80)

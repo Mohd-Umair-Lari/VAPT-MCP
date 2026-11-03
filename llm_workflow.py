@@ -27,8 +27,8 @@ class VaptSession:
     def __init__(self, session_id: str = "local-session") -> None:
         self.session = Session(session_id)
 
-    def start(self, request: str) -> dict[str, Any]:
-        plan = agent_workflow.make_plan(request)
+    def start(self, request: str, target_url: str | None = None) -> dict[str, Any]:
+        plan = agent_workflow.make_plan(request, target_url)
         self.session.plan = plan
         self.session.messages.append({"role": "user", "content": request})
         if plan["status"] == "awaiting_approval":
@@ -44,10 +44,20 @@ class VaptSession:
             self.session.state = "cancelled"
             return agent_workflow.execute_approved(self.session.plan, False)
         self.session.state = "running"
-        result = mcp_tools.call_tool("vapt_assess")
-        self.session.last_result = result
-        self.session.state = "completed"
-        return {"status": "completed", "result": result}
+        plan = self.session.plan
+        action = plan.get("action", "vapt_assess")
+        if action == "vapt_exploit":
+            # For exploit, run passive assessment first, then note exploit requires separate approval
+            result = mcp_tools.call_tool("vapt_assess", {"target_url": plan["target"]})
+            result["note"] = "Exploit phase requires separate approval via request_exploit_approval/vapt_exploit"
+            self.session.last_result = result
+            self.session.state = "completed"
+            return {"status": "completed", "result": result}
+        else:
+            result = mcp_tools.call_tool("vapt_assess", {"target_url": plan["target"]})
+            self.session.last_result = result
+            self.session.state = "completed"
+            return {"status": "completed", "result": result}
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -56,4 +66,3 @@ class VaptSession:
             "plan": self.session.plan,
             "has_result": self.session.last_result is not None,
         }
-

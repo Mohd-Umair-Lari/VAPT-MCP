@@ -15,20 +15,21 @@ import scheduler
 import history
 import mcp_server
 import harness
+from scope import Scope, ScopeViolation
 
 
 class VaptMvpTests(unittest.TestCase):
-    def test_authorized_config_loads(self):
+    def test_config_loads(self):
         config = vapt_mvp.load_config(Path(__file__).parents[1] / "config.json")
-        self.assertEqual(config["target"]["host"], "192.168.56.102")
-        self.assertEqual(vapt_mvp.target_url(config["target"]), "http://192.168.56.102:3000/")
+        self.assertEqual(config["target"]["host"], "example.com")
+        self.assertEqual(vapt_mvp.target_url(config["target"]), "http://example.com:80/")
 
-    def test_allowlist_rejects_wrong_host(self):
-        config = {"target": {"scheme": "http", "host": "192.168.56.103", "port": 3000, "base_path": "/"}}
+    def test_invalid_config_rejected(self):
+        config = {"target": {"scheme": "http", "host": "", "port": 3000, "base_path": "/"}}
         with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]) as directory:
             path = Path(directory) / "config.json"
             path.write_text(json.dumps(config), encoding="utf-8")
-            with self.assertRaises(ValueError):
+            with self.assertRaises((ValueError, ScopeViolation)):
                 vapt_mvp.load_config(path)
 
     def test_missing_security_header_is_found(self):
@@ -48,8 +49,8 @@ class VaptMvpTests(unittest.TestCase):
     def test_phase4_detects_cookie_attributes(self):
         findings = vapt_mvp.assess_phase4(
             {"Set-Cookie": "session=abc; Path=/"},
-            "http://192.168.56.102:3000/",
-            "http://192.168.56.102:3000/",
+            "http://example.com:80/",
+            "http://example.com:80/",
         )
         finding_ids = {finding.finding_id for finding in findings}
         self.assertEqual(finding_ids, {"cookie-without-secure", "cookie-without-httponly", "cookie-without-samesite"})
@@ -64,16 +65,16 @@ class VaptMvpTests(unittest.TestCase):
         self.assertEqual(assessment.summary["by_severity"]["medium"], 1)
 
     def test_reports_write_to_requested_directory(self):
-        assessment = vapt_mvp.Assessment("assessment-test", "now", "later", {"url": "http://example/"}, "completed")
+        assessment = vapt_mvp.Assessment("assessment-test", "now", "later", {"url": "http://example.com/"}, "completed")
         with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]) as directory:
             json_path, markdown_path = vapt_mvp.write_reports(assessment, Path(directory) / "reports")
             self.assertTrue(json_path.exists())
             self.assertTrue(markdown_path.exists())
             self.assertEqual(json.loads(json_path.read_text(encoding="utf-8"))["assessment_id"], "assessment-test")
 
-    def test_mcp_scope_is_restricted(self):
+    def test_mcp_scope_returns_config_target(self):
         scope = mcp_tools.vapt_scope()
-        self.assertEqual(scope["target"]["host"], "192.168.56.102")
+        self.assertEqual(scope["target"]["host"], "example.com")
         self.assertFalse(scope["intrusive_testing"])
 
     def test_mcp_rejects_unknown_tool(self):
@@ -86,9 +87,15 @@ class VaptMvpTests(unittest.TestCase):
         result = agent_workflow.execute_approved(plan, False)
         self.assertEqual(result["status"], "cancelled")
 
-    def test_agent_rejects_intrusive_request(self):
+    def test_agent_accepts_exploit_request(self):
         plan = agent_workflow.make_plan("exploit the target")
-        self.assertEqual(plan["status"], "rejected")
+        self.assertEqual(plan["status"], "awaiting_approval")
+        self.assertEqual(plan["action"], "vapt_exploit")
+
+    def test_agent_accepts_payload_request(self):
+        plan = agent_workflow.make_plan("run sql injection payload")
+        self.assertEqual(plan["status"], "awaiting_approval")
+        self.assertEqual(plan["action"], "vapt_exploit")
 
     def test_automation_compares_findings(self):
         previous = {"findings": [{"finding_id": "old"}, {"finding_id": "same"}]}
@@ -106,11 +113,12 @@ class VaptMvpTests(unittest.TestCase):
         result = session.approve(False)
         self.assertEqual(result["status"], "cancelled")
 
-    def test_llm_session_rejects_intrusive_request(self):
+    def test_llm_session_accepts_exploit_request(self):
         session = llm_workflow.VaptSession()
         result = session.start("run an exploit payload")
-        self.assertEqual(result["status"], "rejected")
-        self.assertEqual(session.snapshot()["state"], "rejected")
+        self.assertEqual(result["status"], "awaiting_approval")
+        self.assertEqual(result["action"], "vapt_exploit")
+        self.assertEqual(session.snapshot()["state"], "awaiting_approval")
 
     def test_scheduler_is_disabled_by_default(self):
         result = scheduler.run_once(scheduler.Schedule(), lambda previous: {"unused": previous})
@@ -142,23 +150,26 @@ class VaptMvpTests(unittest.TestCase):
         names = {tool["name"] for tool in response["result"]["tools"]}
         self.assertIn("vapt_start_assessment", names)
         self.assertIn("vapt_get_history", names)
+        self.assertIn("vapt_exploit", names)
+        self.assertIn("vapt_crawl", names)
 
     def test_mcp_server_initializes(self):
         response = mcp_server.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
         self.assertEqual(response["result"]["serverInfo"]["name"], "vapt-mcp")
+        self.assertEqual(response["result"]["serverInfo"]["version"], "1.0.0")
 
     def test_harness_requires_target_and_allowlisted_tool(self):
-        runner = harness.Harness()
+        runner = harness.Harness("example.com", 80)
         with self.assertRaises(ValueError):
-            runner.validate(["curl", "http://example.com"])
+            runner.validate(["curl", "http://other-host.com"])
         with self.assertRaises(ValueError):
             runner.validate(["bash", "-c", "echo hi"])
 
     def test_harness_requires_active_approval(self):
-        runner = harness.Harness()
+        runner = harness.Harness("example.com", 80)
         with self.assertRaises(ValueError):
-            runner.validate(["curl", "http://192.168.56.102:3000/"], "active", False)
-        runner.validate(["curl", "http://192.168.56.102:3000/"], "active", True)
+            runner.validate(["curl", "http://example.com:80/"], "active", False)
+        runner.validate(["curl", "http://example.com:80/"], "active", True)
 
 
 if __name__ == "__main__":

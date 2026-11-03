@@ -1,18 +1,13 @@
-"""Single source of truth for what this tool is authorized to touch.
+"""Single source of truth for the authorized engagement target.
 
-Every active request MUST pass through a Scope. Production code only ever
-constructs Scope.authorized_lab(), which is hard-locked to the one approved
-OWASP Juice Shop lab target. Tests may construct a Scope bound to a local mock
-server via Scope.for_testing(); there is no production code path that builds a
-scope for any other host. This is the control that keeps the engine authorized.
+A Scope defines the scheme/host/port boundary that all requests must stay within.
+Production code constructs a Scope from user-provided target configuration.
+There is no hardcoded target — the operator supplies the engagement scope.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 from urllib.parse import urlparse
-
-# The one and only authorized engagement target.
-AUTHORIZED = {"scheme": "http", "host": "192.168.56.102", "port": 3000}
 
 
 class ScopeViolation(Exception):
@@ -26,8 +21,18 @@ class Scope:
     port: int
 
     @classmethod
-    def authorized_lab(cls) -> "Scope":
-        return cls(AUTHORIZED["scheme"], AUTHORIZED["host"], AUTHORIZED["port"])
+    def from_config(cls, target: dict) -> "Scope":
+        """Create a Scope from a target config dict with scheme, host, port."""
+        return cls(target["scheme"], target["host"], int(target["port"]))
+
+    @classmethod
+    def from_url(cls, url: str) -> "Scope":
+        """Parse a Scope from a base URL (scheme://host:port)."""
+        parsed = urlparse(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            raise ValueError(f"Invalid target URL: {url}")
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        return cls(parsed.scheme, parsed.hostname, port)
 
     @classmethod
     def for_testing(cls, host: str, port: int, scheme: str = "http") -> "Scope":
@@ -51,10 +56,18 @@ class Scope:
 
 
 def assert_config_authorized(target: dict) -> None:
-    """Fail closed if a config file points anywhere but the authorized lab."""
-    if (
-        target.get("scheme") != AUTHORIZED["scheme"]
-        or target.get("host") != AUTHORIZED["host"]
-        or int(target.get("port", 0)) != AUTHORIZED["port"]
-    ):
-        raise ScopeViolation("allowlist violation: only http://192.168.56.102:3000 is authorized")
+    """Validate that a target config has required fields (no hardcoded allowlist)."""
+    required = {"scheme", "host", "port"}
+    missing = required - set(target.keys())
+    if missing:
+        raise ScopeViolation(f"Target config missing required fields: {missing}")
+    if target["scheme"] not in {"http", "https"}:
+        raise ScopeViolation(f"Invalid scheme: {target['scheme']} (must be http or https)")
+    if not target["host"]:
+        raise ScopeViolation("Target host cannot be empty")
+    try:
+        port = int(target["port"])
+        if not (1 <= port <= 65535):
+            raise ValueError
+    except (ValueError, TypeError):
+        raise ScopeViolation(f"Invalid port: {target['port']}")

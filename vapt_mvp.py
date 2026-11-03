@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Non-intrusive Phase 1/2 VAPT assessment for the authorized lab target."""
 from __future__ import annotations
-import argparse, json, sys, urllib.error, urllib.request
+import argparse, ipaddress, json, socket, sys, urllib.error, urllib.request
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from scope import assert_config_authorized
 
 DEFAULT_CONFIG = Path(__file__).with_name("config.json")
 DEFAULT_REPORT_DIR = Path(__file__).resolve().parent / "reports"
@@ -53,9 +55,26 @@ def load_config(path: Path) -> dict[str, Any]:
     target = config.get("target", {})
     if not {"scheme", "host", "port", "base_path"}.issubset(target):
         raise ValueError("config target must include scheme, host, port, and base_path")
-    if target["scheme"] != "http" or target["host"] != "192.168.56.102" or int(target["port"]) != 3000:
-        raise ValueError("allowlist violation: only http://192.168.56.102:3000 is authorized")
+    assert_config_authorized(target)
     return config
+
+def config_for_passive_url(url: str) -> dict[str, Any]:
+    """Build a one-run passive config for a public HTTP(S) URL."""
+    from urllib.parse import urlparse
+    parsed = urlparse(url.strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
+        raise ValueError("passive URL must be an HTTP(S) URL without embedded credentials")
+    if parsed.path not in {"", "/"} or parsed.query or parsed.fragment:
+        raise ValueError("passive URL must contain only scheme, host, optional port, and root path")
+    try:
+        addresses = {item[4][0] for item in socket.getaddrinfo(parsed.hostname, parsed.port, type=socket.SOCK_STREAM)}
+    except OSError as error:
+        raise ValueError(f"passive URL host could not be resolved: {error}") from error
+    if any(not ipaddress.ip_address(address).is_global for address in addresses):
+        raise ValueError("passive URL must resolve only to public internet addresses")
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    return {"target": {"scheme": parsed.scheme, "host": parsed.hostname, "port": port, "base_path": "/"},
+            "timeout_seconds": 10, "user_agent": "VAPT-MVP-Passive/0.3"}
 
 def target_url(target: dict[str, Any]) -> str:
     path = str(target.get("base_path", "/")); path = path if path.startswith("/") else "/" + path
@@ -176,7 +195,15 @@ def write_reports(assessment: Assessment, report_dir: Path) -> tuple[Path, Path]
         "## Summary", "", f"- Findings: **{assessment.summary.get('finding_count', 0)}**",
         f"- Errors: **{assessment.summary.get('error_count', 0)}**", "",
         "## Safe recon", "", "| Path | Status | Content type |", "|---|---:|---|"]
-    lines += [f"| `{x['path']}` | `{x.get('status', 'error')}` | `{x.get('content_type') or '—'}` |" for x in assessment.recon]
+    for x in assessment.recon:
+        if "path" in x:
+            # Old format
+            lines.append(f"| `{x['path']}` | `{x.get('status', 'error')}` | `{x.get('content_type') or '—'}` |")
+        elif "url" in x:
+            # New format from crawler
+            lines.append(f"| `{x['url']}` | `{x.get('status', 'error')}` | `{x.get('method', 'GET')}` |")
+        else:
+            lines.append(f"| `unknown` | `error` | `—` |")
     lines += ["", "## Findings", ""]
     if assessment.findings:
         for f in assessment.findings: lines += [f"### {f.finding_id} — {f.title}", "", f"Severity: **{f.severity}** | Confidence: **{f.confidence}**", "", f.description, "", f"Remediation: {f.remediation}", ""]
@@ -186,10 +213,21 @@ def write_reports(assessment: Assessment, report_dir: Path) -> tuple[Path, Path]
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run the non-intrusive VAPT MVP assessment")
-    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG); parser.add_argument("--report-dir", type=Path, default=DEFAULT_REPORT_DIR)
+    parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
+    parser.add_argument("--report-dir", type=Path, default=DEFAULT_REPORT_DIR)
+    parser.add_argument("--target", type=str, help="target URL (scheme://host:port)")
     args = parser.parse_args()
-    try: assessment = run_assessment(load_config(args.config)); paths = write_reports(assessment, args.report_dir)
-    except (OSError, ValueError, json.JSONDecodeError) as error: print(f"Assessment could not start: {error}", file=sys.stderr); return 2
-    print(json.dumps({"status": assessment.status, "json_report": str(paths[0]), "markdown_report": str(paths[1])}, indent=2)); return 0 if assessment.status != "failed" else 1
+    try:
+        if args.target:
+            config = config_for_passive_url(args.target)
+        else:
+            config = load_config(args.config)
+        assessment = run_assessment(config)
+        paths = write_reports(assessment, args.report_dir)
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        print(f"Assessment could not start: {error}", file=sys.stderr)
+        return 2
+    print(json.dumps({"status": assessment.status, "json_report": str(paths[0]), "markdown_report": str(paths[1])}, indent=2))
+    return 0 if assessment.status != "failed" else 1
 
 if __name__ == "__main__": raise SystemExit(main())

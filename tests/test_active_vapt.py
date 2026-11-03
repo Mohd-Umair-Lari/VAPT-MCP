@@ -47,6 +47,16 @@ class JuiceShopMock(BaseHTTPRequestHandler):
                 self._send(200, {"data": {"id": parsed.path.rsplit("/", 1)[-1]}})
             else:
                 self._send(401, {"error": "unauthenticated"})
+        elif parsed.path.startswith("/api/users/") or parsed.path.startswith("/api/orders/") or parsed.path.startswith("/api/documents/") or parsed.path.startswith("/api/accounts/") or parsed.path.startswith("/api/baskets/"):
+            if self.headers.get("Authorization", "").startswith("Bearer "):
+                self._send(200, {"data": {"id": parsed.path.rsplit("/", 1)[-1]}})
+            else:
+                self._send(401, {"error": "unauthenticated"})
+        elif parsed.path == "/search":
+            query = parse_qs(parsed.query).get("q", [""])[0]
+            self._send(200, {"results": [], "query": query})
+        elif parsed.path == "/login":
+            self._send(401, {"error": "invalid credentials"})
         else:
             self._send(404, {"error": "not found"})
 
@@ -58,11 +68,27 @@ class JuiceShopMock(BaseHTTPRequestHandler):
             if email == "'":
                 self._send(500, {"error": "SQLITE_ERROR: near syntax error"})
             elif "' OR 1=1" in email:
-                self._send(200, {"authentication": {"token": "eyJmYWtlAFAKEtoken"}})
+                self._send(200, {"authentication": {"token": "eyJmYW...oken"}})
             elif email == WEAK["email"] and body.get("password") == WEAK["password"]:
-                self._send(200, {"authentication": {"token": "eyJ3ZWFrWEAKtoken"}})
+                self._send(200, {"authentication": {"token": "***"}})
             else:
                 self._send(401, {"error": "invalid credentials"})
+        elif self.path == "/login":
+            email = body.get("username", body.get("email", ""))
+            if email == "'":
+                self._send(500, {"error": "SQL syntax error near '"})
+            elif "' OR 1=1" in email:
+                self._send(200, {"authentication": {"token": "eyJmYW...oken"}})
+            elif email == WEAK["email"] and body.get("password") == WEAK["password"]:
+                self._send(200, {"authentication": {"token": "***"}})
+            else:
+                self._send(401, {"error": "invalid credentials"})
+        elif self.path == "/fetch":
+            url = body.get("url", "")
+            if "169.254.169.254" in url:
+                self._send(200, {"ami-id": "ami-123", "instance-id": "i-123"})
+            else:
+                self._send(200, {"fetched": url})
         else:
             self._send(404, {"error": "not found"})
 
@@ -84,10 +110,10 @@ class ActiveVaptTests(unittest.TestCase):
 
     def test_scope_blocks_out_of_scope(self):
         with self.assertRaises(ScopeViolation):
-            Scope.authorized_lab().require("http://example.com/")
+            Scope.from_url("http://example.com/").require("http://other-host.com/")
 
     def test_http_client_refuses_out_of_scope(self):
-        client = HttpClient(Scope.authorized_lab(), rate_limit_per_second=0)
+        client = HttpClient(Scope.for_testing("127.0.0.1", self.port), rate_limit_per_second=0)
         with self.assertRaises(ScopeViolation):
             client.get("http://127.0.0.1:1/")
 
@@ -104,6 +130,11 @@ class ActiveVaptTests(unittest.TestCase):
         finding = active_vapt.detect_reflected_input(self.client())
         self.assertIsNotNone(finding)
         self.assertEqual(finding.finding_id, "reflected-search-input")
+
+    def test_detect_ssrf(self):
+        finding = active_vapt.detect_ssrf(self.client())
+        self.assertIsNotNone(finding)
+        self.assertEqual(finding.finding_id, "ssrf-metadata")
 
     def test_exploit_requires_approval_flag(self):
         with self.assertRaises(PermissionError):
@@ -123,9 +154,11 @@ class ActiveVaptTests(unittest.TestCase):
         finding = active_vapt.exploit_jwt_none(self.client(), True, probe_path="/rest/basket/1")
         self.assertEqual(finding.finding_id, "jwt-none-accepted")
 
-    def test_exploit_idor_basket(self):
-        finding = active_vapt.exploit_idor_basket(self.client(), True, token="any", other_id=2)
-        self.assertEqual(finding.finding_id, "idor-basket")
+    def test_exploit_idor(self):
+        finding = active_vapt.exploit_idor(self.client(), True, token="any")
+        self.assertIsNotNone(finding)
+        self.assertIn("idor", finding.finding_id)
+
     def test_approval_lifecycle(self):
         target = "http://127.0.0.1:%d" % self.port
         with TemporaryDirectory() as tmp:
@@ -172,12 +205,14 @@ class ActiveVaptTests(unittest.TestCase):
                 raise TimeoutError("target timed out")
 
         config = self._config(exploit=True)
-        token = approval.request_approval(Scope.authorized_lab().base_url())["token"]
+        target_url = "http://127.0.0.1:%d" % self.port
+        token = approval.request_approval(target_url)["token"]
         with TemporaryDirectory() as tmp:
-            result = orchestrator.run(config, scope=Scope.authorized_lab(), client=FailingClient(),
+            result = orchestrator.run(config, scope=Scope.from_url(target_url), client=FailingClient(),
                                       approval_token=token, report_dir=tmp)
         self.assertEqual(result["assessment"]["status"], "completed_with_errors")
         self.assertEqual(result["exploit_status"], "completed_with_errors")
+
     def test_orchestrator_exploits_when_approval_not_required(self):
         with TemporaryDirectory() as tmp:
             result = orchestrator.run(self._config(exploit=True, require_approval=False),
@@ -188,24 +223,24 @@ class ActiveVaptTests(unittest.TestCase):
 
     def test_mcp_scope_tool(self):
         scope = mcp_server.vapt_scope()
-        self.assertEqual(scope["target"], "http://192.168.56.102:3000")
+        self.assertEqual(scope["target"], "http://example.com:80")
         self.assertTrue(scope["exploit_requires_approval"])
 
     def test_mcp_exploit_refuses_without_token(self):
-        result = mcp_server.vapt_exploit("not-a-real-token")
+        result = mcp_server.vapt_exploit("not-a-real-token", "", "http://example.com:80")
         self.assertEqual(result["status"], "refused")
 
     def test_mcp_exploit_requires_execution_confirmation(self):
-        result = mcp_server.vapt_exploit("not-a-real-token", "")
+        result = mcp_server.vapt_exploit("not-a-real-token", "", "http://example.com:80")
         self.assertEqual(result["status"], "refused")
 
     def test_mcp_lists_active_actions_without_executing(self):
-        result = mcp_server.vapt_list_active_actions()
+        result = mcp_server.vapt_list_active_actions("http://example.com:80")
         self.assertFalse(result["executed"])
         self.assertTrue(result["actions"])
 
     def test_mcp_approval_requires_explicit_phrase(self):
-        result = mcp_server.request_exploit_approval()
+        result = mcp_server.request_exploit_approval("", "http://example.com:80")
         self.assertEqual(result["status"], "pending")
 
 
