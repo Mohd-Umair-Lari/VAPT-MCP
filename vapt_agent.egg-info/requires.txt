@@ -1,0 +1,9 @@
+
+[active]
+requests>=2.31
+
+[full]
+requests>=2.31
+
+[mcp]
+requests>=2.31

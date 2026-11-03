@@ -1,0 +1,8 @@
+[console_scripts]
+vapt = vapt_mvp:main
+vapt-active = orchestrator:main
+vapt-agent = agent_workflow:main
+vapt-llm = llm_workflow:main
+vapt-mcp = mcp_server:main
+vapt-mcp-tools = mcp_tools:main
+vapt-passive = vapt_mvp:main

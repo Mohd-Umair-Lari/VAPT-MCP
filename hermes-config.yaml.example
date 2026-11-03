@@ -1,19 +1,88 @@
-mcp_servers:
+# Hermes Configuration Example for VAPT Agent
+# Save as ~/.config/hermes/hermes-config.yaml or pass via --config
+
+# VAPT MCP Server Configuration
+servers:
   vapt:
-    command: "python3"
-    args:
-      - "/home/kali/Projects/VAPT-MCP/mcp_server.py"
-    timeout: 120
-    connect_timeout: 10
-    tools:
-      include:
-        - vapt_get_scope
-        - vapt_start_assessment
-        - vapt_get_status
-        - vapt_get_report
-        - vapt_get_history
-        - vapt_list_active_actions
-        - request_exploit_approval
-        - vapt_exploit
-      resources: false
-      prompts: false
+    # Run the MCP server via stdio
+    command: "python"
+    args: ["/path/to/VAPT-MCP/mcp_server.py"]
+    
+    # Optional: environment variables
+    env:
+      # VAPT_CONFIG: "/path/to/custom-config.json"
+      # VAPT_REPORTS_DIR: "/path/to/reports"
+      # VAPT_SECRET_KEY: "/path/to/.approval_secret"
+
+# Optional: Default target for quick assessments
+# vapt:
+#   default_target: "https://example.com"
+#   default_mode: "passive"  # or "active"
+#   default_exploit_categories: "injection,xss,ssrf,path_traversal,redirect,config"
+#   default_crawl: false
+#   default_max_depth: 3
+#   default_max_pages: 100
+
+# Optional: AI Agent workflow settings
+agent:
+  # Auto-approve passive assessments
+  auto_approve_passive: true
+  
+  # Require explicit confirmation for active exploitation
+  require_explicit_approval: true
+  
+  # Default exploit categories for active mode
+  default_exploit_categories: "injection,xss,ssrf,path_traversal,redirect,config"
+  
+  # Enable deep crawling by default
+  default_crawl: false
+
+# Optional: Reporting settings
+reports:
+  output_dir: "./reports"
+  formats: ["json", "markdown"]
+  history_file: "history.json"
+  alert_on_changes: true
+
+# Optional: Security settings
+security:
+  # Rate limiting (requests per second)
+  rate_limit_per_second: 3
+  
+  # Maximum redirects to follow
+  max_redirects: 5
+  
+  # Maximum response size (bytes)
+  max_response_bytes: 1048576
+  
+  # Allow private IP targets (for internal testing)
+  allow_private_ips: false
+  
+  # Per-host concurrency limit
+  max_concurrent_per_host: 2
+  
+  # Global request budget per assessment
+  global_request_budget: 1000
+  
+  # Approval token TTL (minutes)
+  approval_ttl_minutes: 30
+  
+  # Require explicit approval phrase for active mode
+  require_explicit_confirmation: true
+
+# Optional: Command harness settings
+harness:
+  # Allowed tools
+  allowed_tools: ["nmap", "curl", "httpx", "jq", "grep"]
+  
+  # Command timeout (seconds)
+  command_timeout: 30
+  
+  # Restricted environment
+  restricted_env: true
+
+# Optional: Logging
+logging:
+  level: "INFO"
+  format: "json"
+  output: "stderr"

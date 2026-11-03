@@ -1,1 +1,5 @@
-# Phase 1 uses only Python's standard library.
+# Optional dependencies for active mode and MCP integration
+# Install with: pip install -r requirements.txt
+# Or: pip install -e .[active]
+
+requests>=2.31

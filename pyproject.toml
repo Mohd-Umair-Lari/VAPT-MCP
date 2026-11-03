@@ -3,15 +3,50 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "vapt-mvp-lab"
-version = "0.1.0"
-description = "Safe, allowlisted VAPT assessment MVP for an authorized local lab"
+name = "vapt-agent"
+version = "1.0.0"
+description = "Generalized Vulnerability Assessment & Penetration Testing Agent with AI integration"
+readme = "README.md"
+license = {file = "LICENSE"}
 requires-python = ">=3.10"
 dependencies = []
 
+# Optional dependencies using array-of-tables format
+optional-dependencies.active = ["requests>=2.31"]
+optional-dependencies.mcp = ["requests>=2.31"]
+optional-dependencies.full = ["requests>=2.31"]
+
+keywords = ["security", "vapt", "penetration-testing", "vulnerability-assessment", "mcp", "ai-agent"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: System :: Networking :: Monitoring",
+]
+
 [project.scripts]
-vapt-mvp = "vapt_mvp:main"
+vapt = "vapt_mvp:main"
+vapt-passive = "vapt_mvp:main"
+vapt-active = "orchestrator:main"
+vapt-mcp = "mcp_server:main"
 vapt-mcp-tools = "mcp_tools:main"
+vapt-agent = "agent_workflow:main"
+vapt-llm = "llm_workflow:main"
+
+[project.urls]
+Homepage = "https://github.com/your-org/vapt-agent"
+Repository = "https://github.com/your-org/vapt-agent"
+Issues = "https://github.com/your-org/vapt-agent/issues"
 
 [tool.unittest]
 test-directory = "tests"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["*"]

@@ -1,0 +1,11 @@
+LICENSE
+README.md
+pyproject.toml
+tests/test_active_vapt.py
+tests/test_vapt_mvp.py
+vapt_agent.egg-info/PKG-INFO
+vapt_agent.egg-info/SOURCES.txt
+vapt_agent.egg-info/dependency_links.txt
+vapt_agent.egg-info/entry_points.txt
+vapt_agent.egg-info/requires.txt
+vapt_agent.egg-info/top_level.txt
