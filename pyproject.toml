@@ -14,9 +14,10 @@ dependencies = []
 # Optional dependencies using array-of-tables format
 optional-dependencies.active = ["requests>=2.31"]
 optional-dependencies.mcp = ["requests>=2.31"]
-optional-dependencies.full = ["requests>=2.31"]
+optional-dependencies.scanner = ["aiohttp>=3.9", "orjson>=3.9", "cryptography>=42.0"]
+optional-dependencies.full = ["requests>=2.31", "aiohttp>=3.9", "orjson>=3.9", "cryptography>=42.0"]
 
-keywords = ["security", "vapt", "penetration-testing", "vulnerability-assessment", "mcp", "ai-agent"]
+keywords = ["security", "vapt", "penetration-testing", "vulnerability-assessment", "mcp", "ai-agent", "internet-scanner"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Information Technology",
@@ -38,6 +39,7 @@ vapt-mcp = "mcp_server:main"
 vapt-mcp-tools = "mcp_tools:main"
 vapt-agent = "agent_workflow:main"
 vapt-llm = "llm_workflow:main"
+vapt-scan = "internet_scanner:main"
 
 [project.urls]
 Homepage = "https://github.com/your-org/vapt-agent"
