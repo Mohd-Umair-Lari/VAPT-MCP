@@ -43,9 +43,12 @@ except ImportError:
 def _safe_dumps(obj) -> bytes:
     """Serialize to bytes, handling both orjson and json fallback."""
     try:
-        return orjson.dumps(obj)
-    except (TypeError, AttributeError):
-        # json.dumps returns str, encode to bytes
+        result = orjson.dumps(obj)
+        # Ensure we always return bytes
+        if isinstance(result, str):
+            return result.encode('utf-8')
+        return result
+    except (TypeError, AttributeError, ImportError, ModuleNotFoundError):
         return json.dumps(obj).encode('utf-8')
 
 
@@ -84,25 +87,26 @@ class ScanJob:
     max_concurrent: int = 5000          # Max concurrent connections
     timeout_seconds: float = 5.0
     modules: list[str] = field(default_factory=lambda: ["http", "tls", "ssh", "rdp"])
-    output_path: str = "./scan_results"
+    output_path: str = "./reports"
     resume: bool = False
     
-    def expand_targets(self) -> AsyncIterator[ScanTarget]:
-        """Expand CIDRs into individual IP:port targets."""
-        for cidr_str in self.cidrs:
-            network = ipaddress.ip_network(cidr_str, strict=False)
-            for ip in network.hosts():
-                ip_str = str(ip)
-                # Check exclusions
-                excluded = False
-                for exc in self.excluded_cidrs:
-                    if ipaddress.ip_address(ip) in ipaddress.ip_network(exc):
-                        excluded = True
-                        break
-                if excluded:
-                    continue
-                for port in self.ports:
-                    yield ScanTarget(ip=ip_str, port=port)
+    async def expand_targets(self) -> AsyncIterator[ScanTarget]:
+            """Expand CIDRs into individual IP:port targets."""
+            for cidr_str in self.cidrs:
+                network = ipaddress.ip_network(cidr_str, strict=False)
+                for ip in network.hosts():
+                    ip_str = str(ip)
+                    # Check exclusions
+                    excluded = False
+                    for exc in self.excluded_cidrs:
+                        if ipaddress.ip_address(ip) in ipaddress.ip_network(exc):
+                            excluded = True
+                            break
+                    if excluded:
+                        continue
+                    for port in self.ports:
+                        yield ScanTarget(ip=ip_str, port=port)
+                        await asyncio.sleep(0)  # Make it async
 
 
 # ============================================================
@@ -639,7 +643,7 @@ def main():
     parser.add_argument("--concurrent", type=int, default=5000, help="Max concurrent connections")
     parser.add_argument("--timeout", type=float, default=5.0, help="Timeout per connection")
     parser.add_argument("--modules", default="http,tls,ssh,rdp", help="Comma-separated modules")
-    parser.add_argument("--output", default="./scan_results", help="Output directory")
+    parser.add_argument("--output", default="./reports", help="Output directory")
     parser.add_argument("--job-id", default="", help="Job ID (auto-generated if empty)")
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoint")
     parser.add_argument("--name", default="internet-scan", help="Job name")
@@ -668,7 +672,6 @@ def main():
     print(f"Output: {job.output_path}")
     
     # Handle signals
-    loop = asyncio.get_event_loop()
     scanner_instance = None
     
     async def run():
@@ -686,7 +689,7 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
     
     try:
-        loop.run_until_complete(run())
+        asyncio.run(run())
     except KeyboardInterrupt:
         pass
     finally:
