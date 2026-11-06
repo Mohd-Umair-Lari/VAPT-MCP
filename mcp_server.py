@@ -20,6 +20,7 @@ import mcp_tools
 import vapt_mvp
 import approval
 import orchestrator
+import pdf_report
 from scope import Scope
 
 PROTOCOL_VERSION = "2024-11-05"
@@ -34,6 +35,8 @@ TOOLS = [
     {"name": "vapt_get_status", "description": "Get the status of an assessment job.",
      "inputSchema": {"type": "object", "required": ["job_id"], "properties": {"job_id": {"type": "string"}}, "additionalProperties": False}},
     {"name": "vapt_get_report", "description": "Return the completed assessment and report paths for a job.",
+     "inputSchema": {"type": "object", "required": ["job_id"], "properties": {"job_id": {"type": "string"}}, "additionalProperties": False}},
+    {"name": "vapt_generate_pdf_report", "description": "Generate a compact PDF report for a completed VAPT job.",
      "inputSchema": {"type": "object", "required": ["job_id"], "properties": {"job_id": {"type": "string"}}, "additionalProperties": False}},
     {"name": "vapt_get_history", "description": "Return compact local assessment history and change alerts.",
      "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
@@ -195,6 +198,14 @@ def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if job["status"] not in {"completed", "completed_with_errors", "failed"}:
             return {"job_id": arguments["job_id"], "status": job["status"], "message": "Report is not ready."}
         return job["result"]
+    if name == "vapt_generate_pdf_report":
+        job = get_job(arguments["job_id"])
+        if job["status"] not in {"completed", "completed_with_errors", "failed"}:
+            return {"job_id": arguments["job_id"], "status": job["status"], "message": "Report is not ready."}
+        result = job.get("result", {})
+        assessment = result.get("assessment", {})
+        pdf_path = pdf_report.generate_pdf(assessment, vapt_mvp.DEFAULT_REPORT_DIR)
+        return {"job_id": arguments["job_id"], "status": job["status"], "pdf": pdf_path}
     if name == "vapt_get_history":
         return {"history": history.load_history()}
     if name == "vapt_exec_command":

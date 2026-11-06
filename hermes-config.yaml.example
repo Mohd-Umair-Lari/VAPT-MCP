@@ -40,7 +40,7 @@ agent:
 # Optional: Reporting settings
 reports:
   output_dir: "./reports"
-  formats: ["json", "markdown"]
+  formats: ["json", "markdown", "pdf"]
   history_file: "history.json"
   alert_on_changes: true
 

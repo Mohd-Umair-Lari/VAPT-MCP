@@ -127,6 +127,7 @@ Targets are specified via CLI or MCP tools:
 | `vapt_start_assessment` | Start async assessment | `mode`, `target_url`, `exploit_categories`, `crawl` |
 | `vapt_get_status` | Check job status | `job_id` |
 | `vapt_get_report` | Get completed report | `job_id` |
+| `vapt_generate_pdf_report` | Generate a compact PDF report for a completed job | `job_id` |
 | `vapt_detect` | Run recon + detection | `target_url` |
 | `vapt_exploit` | Run active exploitation | `approval_token`, `confirmation`, `target_url`, `exploit_categories` |
 | `vapt_crawl` | Deep crawl attack surface | `target_url`, `max_depth`, `max_pages` |

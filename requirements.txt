@@ -1,5 +1,6 @@
 # Core dependencies (optional - for active scanning)
 requests>=2.31
+reportlab>=4.0
 
 # Internet-wide scanner dependencies
 aiohttp>=3.9
