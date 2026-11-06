@@ -1,30 +1,27 @@
 # OpenCode setup
 
-Install the project dependencies:
+Clone the repository and install dependencies:
 
 ```bash
-cd /path/to/VAPT-MCP
-python3 -m venv .venv
-. .venv/bin/activate
+cd <cloned-repo>
 python -m pip install -r requirements.txt
 ```
 
-Add a local stdio MCP server named `vapt` with:
+In the OpenCode project configuration, usually `opencode.json`, add:
 
 ```json
 {
-  "command": "/absolute/path/to/VAPT-MCP/.venv/bin/python",
-  "args": ["/absolute/path/to/VAPT-MCP/mcp_server.py"]
+  "mcp": {
+    "vapt": {
+      "type": "local",
+      "command": [
+        "<cloned-repo>/.venv/bin/python",
+        "<cloned-repo>/mcp_server.py"
+      ],
+      "enabled": true
+    }
+  }
 }
 ```
 
-Use the Windows `.venv\\Scripts\\python.exe` path when applicable. Restart OpenCode and verify that the VAPT tools appear.
-
-Run a passive job:
-
-```text
-Run a passive VAPT assessment against this authorized URL: https://your-domain.example
-Call vapt_start_assessment, poll its job_id, call vapt_get_report, then call vapt_generate_pdf_report. Do not call vapt_exploit.
-```
-
-Active checks remain approval-gated. The PDF, JSON, and Markdown files are stored in `reports/`.
+On Windows, use `<cloned-repo>/.venv/Scripts/python.exe`. Restart OpenCode and verify the VAPT tools appear.
