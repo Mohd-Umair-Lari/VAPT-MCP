@@ -242,6 +242,15 @@ Reports generated as **JSON** (structured) + **Markdown** (human-readable):
 - `reports/active-<timestamp>.json` — Active assessment with exploits
 - `reports/history.json` — Assessment history with change alerts
 
+## Harness integration guides
+
+- [Hermes](HERMES_SETUP.md)
+- [Claude Code](CLAUDE_CODE_SETUP.md)
+- [OpenCode](OPENCODE_SETUP.md)
+- [Codex](CODEX_SETUP.md)
+
+These guides cover installation, stdio MCP registration, passive assessment, approval-gated active verification, job polling, and PDF report generation.
+
 ## 🐳 Docker Support
 
 ```dockerfile
