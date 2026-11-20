@@ -1,22 +1,23 @@
-# VAPT Agent — Generalized Vulnerability Assessment & Penetration Testing
+# VAPT-MCP — Agentic Vulnerability Assessment Connector
 
-A production-ready, AI-agent-integratable VAPT framework with **passive** and **active** scanning modes, dynamic reconnaissance, cryptographic approval gates, and MCP/Hercules integration.
+A Python VAPT connector that exposes passive assessment, active verification, bounded crawling, command execution, CIDR scanning, history, and PDF reporting through a stdio MCP server. It is designed to be called by Hermes, Claude Code, OpenCode, Codex, and other MCP-compatible agent harnesses.
 
 ## 🎯 Overview
 
-VAPT Agent is a **generalized, internet-wide** vulnerability assessment platform designed for:
+VAPT-MCP is designed for:
 - **AI Agent Integration** — First-class MCP (Model Context Protocol) support for Hermes, Claude, and other AI agents
 - **Dual-Mode Scanning** — Passive reconnaissance + active exploitation with cryptographic approval gates
 - **Dynamic Target Adaptation** — Technology-aware recon that adapts to WordPress, Spring, Django, APIs, etc.
-- **Security-First Architecture** — DNS rebinding protection, HMAC-signed approvals, strict scope enforcement
-- **Zero Dependencies** — Pure Python 3.10+ stdlib (optional: `requests` for active mode)
+- **Configurable Scope** — Per-run URLs, optional enforced scope, and configurable request limits
+- **Portable Reports** — JSON, Markdown, and PDF reports stored under `reports/`
+- **Harness-Friendly Jobs** — Asynchronous `job_id` workflow for smaller models and CLI agents
 
 ## ✨ Key Capabilities
 
 | Feature | Passive Mode | Active Mode |
 |---------|-------------|-------------|
-| **Reconnaissance** | ✅ 80+ universal paths + tech-specific | ✅ Deep crawl + attack surface mapping |
-| **Technology Detection** | ✅ 15+ frameworks (WP, Spring, Django, etc.) | ✅ Enhanced with active probing |
+| **Reconnaissance** | ✅ Safe paths and response inspection | ✅ Optional bounded crawl |
+| **Technology Detection** | ✅ Header-based signals | ✅ Module-dependent probing |
 | **Security Headers** | ✅ CSP, HSTS, X-Frame, etc. | ✅ |
 | **Cookie Analysis** | ✅ Secure, HttpOnly, SameSite | ✅ |
 | **CORS Testing** | ✅ Origin reflection, wildcards | ✅ |
@@ -34,57 +35,43 @@ VAPT Agent is a **generalized, internet-wide** vulnerability assessment platform
 | **IDOR** | ❌ | ✅ With approval |
 | **Weak Credentials** | ❌ | ✅ With approval |
 | **CORS Misconfig** | ✅ | ✅ |
-| **Cryptographic Approvals** | N/A | ✅ HMAC-SHA256 tokens |
+| **Cryptographic Approvals** | N/A | ✅ HMAC-SHA256 tokens, unless `auto_approve` is explicitly requested |
 
 ## 🚀 Quick Start
 
 ### Installation
 ```bash
-# Clone and run - zero dependencies (stdlib only for passive)
+# Clone and install dependencies
 git clone <repo>
 cd VAPT-MCP
-
-# Optional: install requests for active mode
-pip install requests
+python -m pip install -r requirements.txt
 ```
 
 ### Passive Assessment (Safe, No Approval Needed)
 ```bash
-# Assess any public target
-python vapt_mvp.py --target https://example.com
+# The configured target
+python vapt_mvp.py
 
 # With custom output directory
 python vapt_mvp.py --target https://api.example.com --report-dir ./my-reports
 
-# Internal/private targets (requires explicit flag)
-python vapt_mvp.py --target http://192.168.1.100:8080 --allow-private
+# Run the MCP server over stdio
+python mcp_server.py
 ```
 
 ### Active Assessment (Requires Approval)
 ```bash
-# Full active scan with exploitation
-python orchestrator.py --target https://example.com --exploit
-
-# With crawling for attack surface discovery
-python orchestrator.py --target https://example.com --exploit --crawl
-
-# Specific exploit categories only
-python orchestrator.py --target https://example.com --exploit --exploit-categories injection,xss,ssrf
-
-# Internal targets
-python orchestrator.py --target http://internal-app:8080 --exploit --allow-private
+# Active verification is normally started through MCP after reviewing actions
+# and supplying the required target-bound approval.
 ```
 
-### MCP/Hercules Integration
+### MCP integration
 ```bash
 # Start MCP server (stdio transport)
 python mcp_server.py
 
-# Configure in Hermes/hermes-config.yaml:
-# servers:
-#   vapt:
-#     command: python
-#     args: ["/path/to/VAPT-MCP/mcp_server.py"]
+# Configure the absolute path to mcp_server.py in the harness MCP config.
+# See HERMES_SETUP.md, CLAUDE_CODE_SETUP.md, OPENCODE_SETUP.md, and CODEX_SETUP.md.
 ```
 
 ## 🔧 Configuration
@@ -124,16 +111,17 @@ Targets are specified via CLI or MCP tools:
 | Tool | Description | Parameters |
 |------|-------------|------------|
 | `vapt_get_scope` | Get configured target & checks | — |
-| `vapt_start_assessment` | Start async assessment | `mode`, `target_url`, `exploit_categories`, `crawl` |
+| `vapt_start_assessment` | Start async assessment | `mode`, `target_url`, `exploit_categories`, `crawl`, `enforce_scope`, `auto_approve` |
 | `vapt_get_status` | Check job status | `job_id` |
 | `vapt_get_report` | Get completed report | `job_id` |
 | `vapt_generate_pdf_report` | Generate a compact PDF report for a completed job | `job_id` |
 | `vapt_detect` | Run recon + detection | `target_url` |
-| `vapt_exploit` | Run active exploitation | `approval_token`, `confirmation`, `target_url`, `exploit_categories` |
-| `vapt_crawl` | Deep crawl attack surface | `target_url`, `max_depth`, `max_pages` |
+| `vapt_exploit` | Run active verification | `approval_token`, `confirmation`, `target_url`, `exploit_categories`, `exploit_action`, `auto_approve` |
+| `vapt_crawl` | Deep crawl attack surface | `target_url`, `max_depth`, `max_pages`, `enforce_scope` |
+| `vapt_scan_cidr` | Run the separate internet-wide scanner | `cidr`, `ports`, `modules`, `rate`, `concurrent`, `output_format` |
 | `vapt_list_active_actions` | List available exploits | `target_url` |
 | `request_exploit_approval` | Create approval token | `confirmation`, `target_url` |
-| `vapt_exec_command` | Run allowlisted commands | `argv`, `mode`, `approval_token`, `target_url` |
+| `vapt_exec_command` | Run allowlisted commands | `argv`, `mode`, `approval_token`, `target_url`, `enforce_scope` |
 
 ### Agent Workflow (Programmatic)
 ```python
@@ -177,14 +165,14 @@ result = mcp_server.vapt_exploit(
 ## 🛡️ Security Architecture
 
 ### Defense in Depth
-1. **Scope Enforcement** — Every request validated against authorized target
-2. **DNS Rebinding Protection** — Pre-connect IP resolution, private IP blocking (RFC 1918/4193/3927/6598)
-3. **Redirect Safety** — Max 5 redirects, each validated against scope + DNS check
-4. **Rate Limiting** — 3 req/s default, per-host concurrency (2), global budget (1000 req)
+1. **Configurable Scope** — Requests can be bound to the supplied target when `enforce_scope` is enabled
+2. **Target-bound Approval** — Active tokens are signed and tied to the exact target URL
+3. **Redirect and Request Controls** — Timeout, response-size, redirect, rate, and concurrency settings are configurable
+4. **Rate Limiting** — Defaults are conservative and can be adjusted in configuration
 5. **Response Limits** — 1 MB default, configurable
 6. **Cryptographic Approvals** — HMAC-SHA256 tokens bound to target URL, single-use, 30-min TTL
-7. **Command Harness** — Explicit argv only, strict target validation, 30s timeout, no shell
-7. **Approval Gates** — Explicit human confirmation phrase + cryptographic token
+7. **Command Harness** — Explicit argv only, tool allowlist, timeout, and no shell
+8. **Approval Gates** — Explicit confirmation and cryptographic token by default; `auto_approve` is an explicit override
 
 ### Threat Model Coverage
 | Threat | Mitigation |
@@ -213,6 +201,8 @@ VAPT-MCP/
 ├── harness.py           # Constrained command execution
 ├── mcp_server.py        # MCP stdio server (Hercules/Hermes)
 ├── mcp_tools.py         # MCP tool adapter
+├── pdf_report.py         # Compact PDF report generator
+├── internet_scanner.py   # Separate CIDR/ASN internet scanner
 ├── agent_workflow.py    # Agent planning & approval gate
 ├── llm_workflow.py      # LLM session state machine
 ├── automation.py        # Report comparison & alerting
@@ -237,10 +227,13 @@ python -m unittest tests.test_vapt_mvp -v
 
 ## 📊 Report Output
 
-Reports generated as **JSON** (structured) + **Markdown** (human-readable):
+Reports generated as **JSON** (structured), **Markdown** (human-readable), and optional **PDF**:
 - `reports/assessment-<timestamp>.json` — Passive assessment
 - `reports/active-<timestamp>.json` — Active assessment with exploits
+- `reports/<assessment-id>.pdf` — Compact PDF generated from a completed MCP job
 - `reports/history.json` — Assessment history with change alerts
+
+The MCP server keeps jobs in process memory. Save the returned report paths after each run; restarting the server clears active job lookup state.
 
 ## Harness integration guides
 
