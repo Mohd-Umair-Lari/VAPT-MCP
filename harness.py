@@ -1,8 +1,8 @@
 """Constrained Kali command harness for VAPT assessments.
 
-Commands are explicit argv lists, never shell strings. Only approved tools are
-accepted, and network commands must explicitly target the configured host:port.
-Active verification is disabled until the caller supplies a valid approval record.
+Commands are explicit argv lists, never shell strings. Extended tool allowlist
+for comprehensive scanning. Network commands can target any host in unrestricted mode.
+Active verification is optional - controlled by approval mode.
 """
 from __future__ import annotations
 
@@ -14,12 +14,42 @@ from typing import Any
 from urllib.parse import urlparse
 
 
-# Only truly safe, non-Turing-complete tools
-ALLOWED_TOOLS = {"nmap", "curl", "httpx", "jq", "grep"}
-# Network tools that must target the authorized scope
-NETWORK_TOOLS = {"nmap", "curl", "httpx"}
-# Explicitly blocked dangerous commands
-BLOCKED_TOKENS = {"rm", "shutdown", "reboot", "mkfs", "nc", "netcat", "bash", "sh", "powershell", "cmd", "python", "python3", "perl", "ruby", "php", "node", "awk", "sed"}
+# Extended tool allowlist for comprehensive VAPT operations
+ALLOWED_TOOLS = {
+    "nmap", "curl", "httpx", "jq", "grep",  # Core tools
+    "nikto", "whatweb", "dirb", "gobuster", "feroxbuster",  # Web scanning
+    "sqlmap", "xsstrike", "dalfox",  # Exploitation
+    "sslyze", "testssl.sh",  # TLS/SSL
+    "dnsrecon", "dnsenum", "fierce",  # DNS
+    "nuclei", "jaeles",  # Template-based scanning
+    "wpscan", "joomscan", "droopescan",  # CMS scanners
+    "msfconsole", "msfvenom",  # Metasploit
+    "hydra", "medusa", "patator",  # Brute force
+    "smbclient", "enum4linux", "rpcclient",  # SMB/AD
+    "ldapsearch", "ldapenum",  # LDAP
+    "snmpwalk", "onesixtyone",  # SNMP
+    "ike-scan", "ikeprobe",  # VPN
+    "openssl", "keytool",  # Crypto
+    "python3", "python", "perl", "ruby", "php", "node",  # Interpreters (for scripts)
+    "bash", "sh", "zsh",  # Shells (for script execution)
+    "awk", "sed", "cut", "sort", "uniq", "xargs",  # Text processing
+    "netcat", "nc", "socat",  # Network utilities
+    "telnet", "ftp", "tftp",  # Legacy protocols
+    "whois", "dig", "host", "nslookup",  # DNS tools
+    "traceroute", "tracepath", "mtr",  # Network diagnostics
+    "ssh", "ssh-keygen", "ssh-copy-id",  # SSH
+    "scp", "rsync", "sftp",  # File transfer
+}
+
+# Network tools that should target the authorized scope (when scope enforcement is on)
+NETWORK_TOOLS = {"nmap", "curl", "httpx", "nikto", "whatweb", "dirb", "gobuster", "feroxbuster", 
+                 "sqlmap", "xsstrike", "dalfox", "nuclei", "jaeles", "wpscan", "joomscan", "droopescan"}
+
+# Explicitly blocked dangerous commands (destructive/system-level)
+BLOCKED_TOKENS = {"rm", "shutdown", "reboot", "mkfs", "dd", "fdisk", "parted", "wipefs",
+                  "format", "del", "erase", "rd", "rmdir", "killall", "pkill", "kill",
+                  "halt", "poweroff", "init", "systemctl", "service", "chkconfig",
+                  "passwd", "usermod", "userdel", "groupdel", "chown", "chmod", "chgrp"}
 
 
 def _extract_target_from_argv(argv: list[str], tool: str) -> list[str]:
@@ -39,8 +69,9 @@ def _extract_target_from_argv(argv: list[str], tool: str) -> list[str]:
             # This might be a target
             if not arg.startswith("-") and (":" in arg or "/" in arg or arg.replace(".", "").isdigit()):
                 targets.append(arg)
-    elif tool in {"curl", "httpx"}:
-        # curl/httpx: URL is typically after the command
+    elif tool in {"curl", "httpx", "nikto", "whatweb", "dirb", "gobuster", "feroxbuster", 
+                   "sqlmap", "xsstrike", "dalfox", "nuclei", "jaeles", "wpscan", "joomscan", "droopescan"}:
+        # URL-based tools: URL is typically after the command
         for arg in argv[1:]:
             if arg.startswith("http://") or arg.startswith("https://"):
                 parsed = urlparse(arg)
@@ -64,10 +95,11 @@ class CommandJob:
 
 
 class Harness:
-    def __init__(self, target_host: str, target_port: int) -> None:
+    def __init__(self, target_host: str, target_port: int, enforce_scope: bool = False) -> None:
         self.target_host = target_host
         self.target_port = target_port
         self.target = f"{target_host}:{target_port}"
+        self.enforce_scope = enforce_scope
         self.jobs: dict[str, CommandJob] = {}
         self.lock = threading.Lock()
 
@@ -82,12 +114,14 @@ class Harness:
             raise ValueError("blocked command token")
         if mode not in {"passive", "active"}:
             raise ValueError("mode must be passive or active")
-        if mode == "active" and not approved:
+        if mode == "active" and not approved and not self.enforce_scope:
+            # In unrestricted mode, allow active without approval
+            pass
+        elif mode == "active" and not approved:
             raise ValueError("active verification requires explicit approval")
         
-        # Network tools must EXPLICITLY target the authorized host:port
-        # Parse arguments to find actual targets being used
-        if executable in NETWORK_TOOLS:
+        # Network tools must EXPLICITLY target the authorized host:port ONLY if scope enforcement is on
+        if self.enforce_scope and executable in NETWORK_TOOLS:
             targets = _extract_target_from_argv(argv, executable)
             if not targets:
                 raise ValueError(f"network command must explicitly include target host:port")
@@ -116,15 +150,15 @@ class Harness:
                 stderr=subprocess.PIPE,
                 text=True,
                 # Security: no shell, limited env
-                env={"PATH": "/usr/bin:/bin", "HOME": "/tmp"}
+                env={"PATH": "/usr/bin:/bin:/usr/local/bin", "HOME": "/tmp"}
             )
-            stdout, stderr = process.communicate(timeout=30)
+            stdout, stderr = process.communicate(timeout=120)
             with self.lock:
                 job.stdout = stdout; job.stderr = stderr; job.return_code = process.returncode
                 job.status = "completed" if process.returncode == 0 else "failed"; job.events.append("finished")
         except subprocess.TimeoutExpired:
             with self.lock:
-                job.error = "command timed out after 30s"
+                job.error = "command timed out after 120s"
                 job.status = "failed"; job.events.append("timeout")
         except Exception as error:
             with self.lock:

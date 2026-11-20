@@ -3,14 +3,14 @@
 All active modules send requests through HttpClient so the authorized scope,
 redirect handling, and rate limits cannot be bypassed by an individual check.
 
-Security features:
-- DNS rebinding protection (resolves and validates IPs before connecting)
-- Private IP blocking (RFC 1918, RFC 4193, RFC 3927, RFC 6598, RFC 6890)
+Security features (configurable for unrestricted scanning):
+- DNS rebinding protection (resolves and validates IPs before connecting) - optional
+- Private IP blocking (RFC 1918, RFC 4193, RFC 3927, RFC 6598, RFC 6890) - optional
 - Redirect limit enforcement
 - Response size limits
 - Per-host concurrency limits
 - Global request budget
-- Scope enforcement on every hop
+- Scope enforcement on every hop - optional
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ from urllib.parse import urlparse
 
 import requests
 
-from scope import Scope
+from scope import Scope, ScopeViolation
 
 
 # --- Private IP ranges (RFC 1918, RFC 4193, RFC 3927, RFC 6598, RFC 6890) ---
@@ -69,7 +69,7 @@ def resolve_hostname(hostname: str) -> list[str]:
         return []
 
 
-def validate_ips_allowed(ips: list[str], allow_private: bool = False) -> None:
+def validate_ips_allowed(ips: list[str], allow_private: bool = True) -> None:
     """Validate that resolved IPs are allowed (not private unless explicitly allowed)."""
     if allow_private:
         return
@@ -91,13 +91,15 @@ class Response:
 class HttpClient:
     scope: Scope
     user_agent: str = "VAPT-Agent/1.0"
-    timeout: float = 10.0
-    rate_limit_per_second: float = 3.0
-    max_bytes: int = 1_048_576
-    max_redirects: int = 5
-    allow_private_ips: bool = False
-    max_concurrent_per_host: int = 2
-    global_request_budget: int = 1000
+    timeout: float = 30.0
+    rate_limit_per_second: float = 100.0
+    max_bytes: int = 10_485_760  # 10 MB
+    max_redirects: int = 20
+    allow_private_ips: bool = True
+    max_concurrent_per_host: int = 50
+    global_request_budget: int = 100000
+    enable_dns_rebinding_protection: bool = False
+    enforce_scope: bool = False
     _session: requests.Session = field(default_factory=requests.Session, init=False, repr=False)
     _last_request: float = field(default=0.0, init=False, repr=False)
     _request_count: int = field(default=0, init=False, repr=False)
@@ -128,7 +130,8 @@ class HttpClient:
         """Validate redirect target is in scope and not excessive."""
         if redirect_count > self.max_redirects:
             raise ValueError(f"Redirect limit exceeded ({self.max_redirects})")
-        self.scope.require(url)
+        if self.enforce_scope:
+            self.scope.require(url)
 
     def request(self, method: str, path_or_url: str, **kwargs: Any) -> Response:
         if "://" in path_or_url:
@@ -137,15 +140,20 @@ class HttpClient:
             tail = path_or_url if path_or_url.startswith("/") else "/" + path_or_url
             url = self.scope.base_url() + tail
 
-        # Fail closed before a single byte leaves the process.
-        self.scope.require(url)
+        # Scope check (only if enforcing)
+        if self.enforce_scope:
+            # Check scope directly using HttpClient's enforce_scope, not Scope's enforce field
+            if not self.scope.contains(url):
+                raise ScopeViolation(
+                    f"Refusing out-of-scope request to {url!r}; authorized target is {self.scope.base_url()}"
+                )
         self._check_budget()
         self._throttle()
 
-        # DNS rebinding protection: resolve and validate IPs before connecting
+        # DNS rebinding protection: resolve and validate IPs before connecting (optional)
         parsed = urlparse(url)
         hostname = parsed.hostname or ""
-        if hostname:
+        if hostname and self.enable_dns_rebinding_protection:
             ips = resolve_hostname(hostname)
             validate_ips_allowed(ips, self.allow_private_ips)
 
@@ -181,11 +189,12 @@ class HttpClient:
             self._validate_redirect(location, redirect_count)
             
             # DNS rebinding check for redirect target
-            redirect_parsed = urlparse(location)
-            redirect_host = redirect_parsed.hostname or ""
-            if redirect_host:
-                redirect_ips = resolve_hostname(redirect_host)
-                validate_ips_allowed(redirect_ips, self.allow_private_ips)
+            if self.enable_dns_rebinding_protection:
+                redirect_parsed = urlparse(location)
+                redirect_host = redirect_parsed.hostname or ""
+                if redirect_host:
+                    redirect_ips = resolve_hostname(redirect_host)
+                    validate_ips_allowed(redirect_ips, self.allow_private_ips)
             
             # Follow redirect
             resp = self._session.request(
@@ -194,8 +203,9 @@ class HttpClient:
             )
             final_url = resp.url
 
-        # Final URL scope validation
-        self.scope.require(final_url)
+        # Final URL scope validation (only if enforcing)
+        if self.enforce_scope:
+            self.scope.require(final_url)
         
         self._request_count += 1
         

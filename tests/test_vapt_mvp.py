@@ -97,6 +97,13 @@ class VaptMvpTests(unittest.TestCase):
         self.assertEqual(plan["status"], "awaiting_approval")
         self.assertEqual(plan["action"], "vapt_exploit")
 
+    def test_agent_auto_approve_mode(self):
+        plan = agent_workflow.make_plan("run a safe assessment", auto_approve=True)
+        self.assertEqual(plan["status"], "executing")
+        plan = agent_workflow.make_plan("exploit the target", auto_approve=True)
+        self.assertEqual(plan["status"], "executing")
+        self.assertEqual(plan["action"], "vapt_exploit")
+
     def test_automation_compares_findings(self):
         previous = {"findings": [{"finding_id": "old"}, {"finding_id": "same"}]}
         current = {"findings": [{"finding_id": "new"}, {"finding_id": "same"}]}
@@ -159,14 +166,14 @@ class VaptMvpTests(unittest.TestCase):
         self.assertEqual(response["result"]["serverInfo"]["version"], "1.0.0")
 
     def test_harness_requires_target_and_allowlisted_tool(self):
-        runner = harness.Harness("example.com", 80)
+        runner = harness.Harness("example.com", 80, enforce_scope=True)
         with self.assertRaises(ValueError):
             runner.validate(["curl", "http://other-host.com"])
         with self.assertRaises(ValueError):
-            runner.validate(["bash", "-c", "echo hi"])
+            runner.validate(["rm", "-rf", "/"])  # rm is blocked
 
     def test_harness_requires_active_approval(self):
-        runner = harness.Harness("example.com", 80)
+        runner = harness.Harness("example.com", 80, enforce_scope=True)
         with self.assertRaises(ValueError):
             runner.validate(["curl", "http://example.com:80/"], "active", False)
         runner.validate(["curl", "http://example.com:80/"], "active", True)

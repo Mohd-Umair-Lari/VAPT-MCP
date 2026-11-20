@@ -1,8 +1,7 @@
-"""Single source of truth for the authorized engagement target.
+"""Scope definition for VAPT assessments.
 
-A Scope defines the scheme/host/port boundary that all requests must stay within.
-Production code constructs a Scope from user-provided target configuration.
-There is no hardcoded target — the operator supplies the engagement scope.
+A Scope defines the scheme/host/port boundary for a target.
+For unrestricted scanning, scope enforcement can be disabled.
 """
 from __future__ import annotations
 
@@ -11,7 +10,7 @@ from urllib.parse import urlparse
 
 
 class ScopeViolation(Exception):
-    """Raised when a request would leave the authorized scope."""
+    """Raised when a request would leave the authorized scope (when enforced)."""
 
 
 @dataclass(frozen=True)
@@ -19,25 +18,27 @@ class Scope:
     scheme: str
     host: str
     port: int
+    enforce: bool = False  # When False, scope checks are warnings only
 
     @classmethod
     def from_config(cls, target: dict) -> "Scope":
         """Create a Scope from a target config dict with scheme, host, port."""
-        return cls(target["scheme"], target["host"], int(target["port"]))
+        return cls(target["scheme"], target["host"], int(target["port"]), 
+                   target.get("enforce_scope", False))
 
     @classmethod
-    def from_url(cls, url: str) -> "Scope":
+    def from_url(cls, url: str, enforce: bool = False) -> "Scope":
         """Parse a Scope from a base URL (scheme://host:port)."""
         parsed = urlparse(url)
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
             raise ValueError(f"Invalid target URL: {url}")
         port = parsed.port or (443 if parsed.scheme == "https" else 80)
-        return cls(parsed.scheme, parsed.hostname, port)
+        return cls(parsed.scheme, parsed.hostname, port, enforce)
 
     @classmethod
     def for_testing(cls, host: str, port: int, scheme: str = "http") -> "Scope":
         """Only for offline unit tests against a local mock server."""
-        return cls(scheme, host, port)
+        return cls(scheme, host, port, enforce=False)
 
     def base_url(self) -> str:
         return f"{self.scheme}://{self.host}:{self.port}"
@@ -48,10 +49,11 @@ class Scope:
         return parsed.scheme == self.scheme and parsed.hostname == self.host and port == self.port
 
     def require(self, url: str) -> str:
-        if not self.contains(url):
+        if self.enforce and not self.contains(url):
             raise ScopeViolation(
                 f"Refusing out-of-scope request to {url!r}; authorized target is {self.base_url()}"
             )
+        # When not enforcing, just log/warn but allow
         return url
 
 

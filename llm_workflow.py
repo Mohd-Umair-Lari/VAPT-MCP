@@ -2,6 +2,8 @@
 
 The model supplies intent and receives structured state. This module enforces
 the workflow rules; it does not execute arbitrary model-generated code.
+
+Supports both gated (with approval) and unrestricted (auto-approve) modes.
 """
 from __future__ import annotations
 
@@ -27,18 +29,22 @@ class VaptSession:
     def __init__(self, session_id: str = "local-session") -> None:
         self.session = Session(session_id)
 
-    def start(self, request: str, target_url: str | None = None) -> dict[str, Any]:
-        plan = agent_workflow.make_plan(request, target_url)
+    def start(self, request: str, target_url: str | None = None, auto_approve: bool = False) -> dict[str, Any]:
+        plan = agent_workflow.make_plan(request, target_url, auto_approve)
         self.session.plan = plan
         self.session.messages.append({"role": "user", "content": request})
         if plan["status"] == "awaiting_approval":
             self.session.state = "awaiting_approval"
+        elif plan["status"] == "executing":
+            self.session.state = "running"
+            # Auto-execute the plan
+            return self.approve(True)
         else:
             self.session.state = plan["status"]
         return plan
 
     def approve(self, approved: bool) -> dict[str, Any]:
-        if self.session.state != "awaiting_approval" or not self.session.plan:
+        if self.session.state not in ("awaiting_approval", "running") or not self.session.plan:
             return {"status": "not_ready", "message": "There is no assessment waiting for approval."}
         if not approved:
             self.session.state = "cancelled"
@@ -47,9 +53,12 @@ class VaptSession:
         plan = self.session.plan
         action = plan.get("action", "vapt_assess")
         if action == "vapt_exploit":
-            # For exploit, run passive assessment first, then note exploit requires separate approval
-            result = mcp_tools.call_tool("vapt_assess", {"target_url": plan["target"]})
-            result["note"] = "Exploit phase requires separate approval via request_exploit_approval/vapt_exploit"
+            # Run exploit with auto_approve if set
+            result = mcp_tools.call_tool("vapt_exploit", {
+                "target_url": plan["target"],
+                "exploit_categories": ",".join(plan.get("exploit_categories", [])),
+                "auto_approve": plan.get("auto_approve", False)
+            })
             self.session.last_result = result
             self.session.state = "completed"
             return {"status": "completed", "result": result}

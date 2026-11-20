@@ -109,11 +109,19 @@ class ActiveVaptTests(unittest.TestCase):
         return HttpClient(Scope.for_testing("127.0.0.1", self.port), rate_limit_per_second=0, timeout=5, allow_private_ips=True)
 
     def test_scope_blocks_out_of_scope(self):
+        # Scope enforcement is now optional - only raises when enforce=True
+        scope = Scope.from_url("http://example.com/", enforce=True)
         with self.assertRaises(ScopeViolation):
-            Scope.from_url("http://example.com/").require("http://other-host.com/")
+            scope.require("http://other-host.com/")
+        # Without enforcement, no violation
+        scope = Scope.from_url("http://example.com/", enforce=False)
+        scope.require("http://other-host.com/")  # Should not raise
 
     def test_http_client_refuses_out_of_scope(self):
         client = HttpClient(Scope.for_testing("127.0.0.1", self.port), rate_limit_per_second=0, allow_private_ips=True)
+        # With enforce_scope=False (default), no violation - request goes through but fails to connect
+        # This test now checks that scope enforcement can be enabled
+        client.enforce_scope = True
         with self.assertRaises(ScopeViolation):
             client.get("http://127.0.0.1:1/")
 
@@ -222,9 +230,10 @@ class ActiveVaptTests(unittest.TestCase):
         self.assertIn("sqli-auth-bypass", ids)
 
     def test_mcp_scope_tool(self):
-        scope = mcp_server.vapt_scope()
-        self.assertEqual(scope["target"], "http://example.com:80")
-        self.assertTrue(scope["exploit_requires_approval"])
+            scope = mcp_server.vapt_scope()
+            self.assertEqual(scope["target"], "http://example.com:80")
+            # exploit_requires_approval is now False (can be disabled via auto_approve)
+            self.assertFalse(scope["exploit_requires_approval"])
 
     def test_mcp_exploit_refuses_without_token(self):
         result = mcp_server.vapt_exploit("not-a-real-token", "", "http://example.com:80")

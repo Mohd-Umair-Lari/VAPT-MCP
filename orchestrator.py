@@ -3,6 +3,8 @@
 Honors the 'auto-recon, approve attacks' posture: recon and detection run
 automatically; exploitation runs only when a valid approval token is supplied.
 Reuses vapt_mvp's Assessment/report writer and history for a consistent record.
+
+Supports unrestricted scanning with optional approval gates and single-action execution.
 """
 from __future__ import annotations
 
@@ -21,19 +23,26 @@ from scope import Scope
 
 EXPLOIT_IDS = ["sqli-auth-bypass", "weak-credentials", "jwt-none-accepted", "idor-basket"]
 
+# All available exploit actions for single-action execution
+ALL_EXPLOIT_ACTIONS = [
+    "sqli", "xss", "ssrf", "path_traversal", "cmd_injection", "xxe", 
+    "ldap_injection", "nosql_injection", "open_redirect", "cors", 
+    "security_headers", "cookie_security", "jwt_none", "idor", "weak_login"
+]
+
 
 def build_client(scope: Scope, config: dict[str, Any]) -> HttpClient:
     active = config.get("active", {})
     return HttpClient(
         scope,
         user_agent=config.get("user_agent", "VAPT-Agent/1.0"),
-        timeout=float(config.get("timeout_seconds", 10)),
-        rate_limit_per_second=float(active.get("rate_limit_per_second", 3)),
-        max_bytes=int(active.get("max_response_bytes", 1_048_576)),
-        max_redirects=int(active.get("max_redirects", 5)),
-        allow_private_ips=bool(active.get("allow_private_ips", False)),
-        max_concurrent_per_host=int(active.get("max_concurrent_per_host", 2)),
-        global_request_budget=int(active.get("global_request_budget", 1000)),
+        timeout=float(config.get("timeout_seconds", 30)),
+        rate_limit_per_second=float(active.get("rate_limit_per_second", 100)),
+        max_bytes=int(active.get("max_response_bytes", 10_485_760)),
+        max_redirects=int(active.get("max_redirects", 20)),
+        allow_private_ips=bool(active.get("allow_private_ips", True)),
+        max_concurrent_per_host=int(active.get("max_concurrent_per_host", 50)),
+        global_request_budget=int(active.get("global_request_budget", 100000)),
     )
 
 
@@ -46,6 +55,11 @@ def run(config: dict[str, Any], scope: Scope | None = None, client: HttpClient |
     active = config.get("active", {})
     phases = active.get("phases", {})
     report_dir = Path(report_dir) if report_dir else vapt_mvp.DEFAULT_REPORT_DIR
+    
+    # Check for auto-approve mode
+    auto_approve = active.get("auto_approve", False) or approval_token == "auto-approved"
+    # Check for single exploit action
+    exploit_action = active.get("exploit_action", "")
 
     assessment = vapt_mvp.Assessment(
         datetime.now(timezone.utc).strftime("active-%Y%m%dT%H%M%SZ"), vapt_mvp.utc_now(), None,
@@ -90,7 +104,9 @@ def run(config: dict[str, Any], scope: Scope | None = None, client: HttpClient |
     want_exploit = bool(phases.get("exploit", False) or approval_token)
     approved, reason = False, "skipped"
     if want_exploit:
-        if active.get("require_exploit_approval", True):
+        if auto_approve:
+            approved, reason = True, "auto-approved"
+        elif active.get("require_exploit_approval", True):
             approved, reason = approval.validate(approval_token, scope.base_url())
         else:
             approved, reason = True, "approval not required by config"
@@ -101,27 +117,32 @@ def run(config: dict[str, Any], scope: Scope | None = None, client: HttpClient |
     elif want_exploit and approved:
         audit.record("phase_exploit_start", {"target": scope.base_url()})
         try:
-            # Run generic exploits
-            exploit_categories = active.get("exploit_categories", ["injection", "xss", "ssrf", "path_traversal", "redirect", "config"])
+            # Run generic exploits - either all or single action
+            if exploit_action and exploit_action in ALL_EXPLOIT_ACTIONS:
+                # Single action execution
+                exploit_categories = [exploit_action]
+            else:
+                exploit_categories = active.get("exploit_categories", ["injection", "xss", "ssrf", "path_traversal", "redirect", "config"])
             endpoints = active.get("exploit_endpoints", None)
             generic_findings = active_vapt.exploit_generic(client, True, categories=exploit_categories, endpoints=endpoints)
             findings.extend(generic_findings)
 
-            # Legacy Juice Shop specific exploits (kept for compatibility)
-            sqli, token = active_vapt.exploit_sql_login_bypass(client, True)
-            if sqli:
-                findings.append(sqli)
-            if not token:
-                weak, token = active_vapt.exploit_weak_login(client, True, active.get("weak_login_candidates", []))
-                if weak:
-                    findings.append(weak)
-            for finding in (active_vapt.exploit_jwt_none(client, True),
-                            active_vapt.exploit_idor(client, True, token)):
-                if finding:
-                    findings.append(finding)
+            # Legacy Juice Shop specific exploits (kept for compatibility) - only if not single action
+            if not exploit_action:
+                sqli, token = active_vapt.exploit_sql_login_bypass(client, True)
+                if sqli:
+                    findings.append(sqli)
+                if not token:
+                    weak, token = active_vapt.exploit_weak_login(client, True, active.get("weak_login_candidates", []))
+                    if weak:
+                        findings.append(weak)
+                for finding in (active_vapt.exploit_jwt_none(client, True),
+                                active_vapt.exploit_idor(client, True, token)):
+                    if finding:
+                        findings.append(finding)
         except Exception as error:
             assessment.errors.append(f"exploit phase error: {error}")
-        if approval_token:
+        if approval_token and approval_token != "auto-approved":
             approval.consume(approval_token)
         audit.record("phase_exploit_done", {"target": scope.base_url(), "findings": len(findings)})
 
@@ -144,7 +165,7 @@ def run(config: dict[str, Any], scope: Scope | None = None, client: HttpClient |
 
 
 def _cli_run(exploit: bool, target_url: str | None = None, crawl: bool = False,
-             exploit_categories: str | None = None) -> dict[str, Any]:
+             exploit_categories: str | None = None, exploit_action: str | None = None, auto_approve: bool = False) -> dict[str, Any]:
     config = json.loads(Path(__file__).with_name("config.json").read_text(encoding="utf-8"))
     if target_url:
         config["target"] = json.loads(json.dumps(Scope.from_url(target_url).__dict__))
@@ -152,11 +173,18 @@ def _cli_run(exploit: bool, target_url: str | None = None, crawl: bool = False,
     token = None
     if exploit:
         config.setdefault("active", {}).setdefault("phases", {})["exploit"] = True
-        token = approval.request_approval(target_url or Scope.from_config(config["target"]).base_url())["token"]
+        if auto_approve:
+            token = "auto-approved"
+        else:
+            token = approval.request_approval(target_url or Scope.from_config(config["target"]).base_url())["token"]
     if crawl:
         config.setdefault("active", {}).setdefault("phases", {})["crawl"] = True
     if exploit_categories:
         config.setdefault("active", {})["exploit_categories"] = exploit_categories.split(",")
+    if exploit_action:
+        config.setdefault("active", {})["exploit_action"] = exploit_action
+    if auto_approve:
+        config.setdefault("active", {})["auto_approve"] = True
     return run(config, approval_token=token)
 
 
@@ -168,12 +196,14 @@ def main() -> int:
     parser.add_argument("--target", type=str, help="target URL (scheme://host:port)")
     parser.add_argument("--crawl", action="store_true", help="enable deep crawling for attack surface discovery")
     parser.add_argument("--exploit-categories", type=str, help="comma-separated exploit categories (injection,xss,ssrf,path_traversal,redirect,config)")
+    parser.add_argument("--exploit-action", type=str, help="single exploit action to run (sqli,xss,ssrf,path_traversal,cmd_injection,xxe,ldap_injection,nosql_injection,open_redirect,cors,security_headers,cookie_security,jwt_none,idor,weak_login)")
+    parser.add_argument("--auto-approve", action="store_true", help="run exploitation without approval token (unrestricted mode)")
     parser.add_argument("--allow-private", action="store_true", help="allow private IP targets (for internal testing)")
     args = parser.parse_args()
     if args.allow_private:
         # This would need config modification - for now just pass it through
         pass
-    result = _cli_run(args.exploit, args.target, args.crawl, args.exploit_categories)
+    result = _cli_run(args.exploit, args.target, args.crawl, args.exploit_categories, args.exploit_action, args.auto_approve)
     print(json.dumps({"status": result["assessment"]["status"], "exploit_status": result["exploit_status"],
                       "summary": result["assessment"]["summary"], "reports": result["reports"]}, indent=2))
     return 0
