@@ -19,8 +19,8 @@ from scope import Scope, ScopeViolation
 WEAK = {"email": "test@test.com", "password": "test"}
 
 
-class JuiceShopMock(BaseHTTPRequestHandler):
-    """Minimal stand-in for the lab app so active checks can be tested offline."""
+class TestAppMock(BaseHTTPRequestHandler):
+    """Minimal stand-in for a generic web app so active checks can be tested offline."""
 
     def log_message(self, *args):  # keep test output quiet
         pass
@@ -38,42 +38,24 @@ class JuiceShopMock(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
         if parsed.path == "/":
-            self._send(200, {"app": "mock-juice"}, {"X-Powered-By": "Express"})
-        elif parsed.path == "/rest/products/search":
-            query = parse_qs(parsed.query).get("q", [""])[0]
-            self._send(200, {"status": "success", "query": query, "data": []})
-        elif parsed.path.startswith("/rest/basket/"):
-            if self.headers.get("Authorization", "").startswith("Bearer "):
-                self._send(200, {"data": {"id": parsed.path.rsplit("/", 1)[-1]}})
-            else:
-                self._send(401, {"error": "unauthenticated"})
-        elif parsed.path.startswith("/api/users/") or parsed.path.startswith("/api/orders/") or parsed.path.startswith("/api/documents/") or parsed.path.startswith("/api/accounts/") or parsed.path.startswith("/api/baskets/"):
-            if self.headers.get("Authorization", "").startswith("Bearer "):
-                self._send(200, {"data": {"id": parsed.path.rsplit("/", 1)[-1]}})
-            else:
-                self._send(401, {"error": "unauthenticated"})
+            self._send(200, {"app": "test-app"}, {"X-Powered-By": "Express"})
         elif parsed.path == "/search":
             query = parse_qs(parsed.query).get("q", [""])[0]
             self._send(200, {"results": [], "query": query})
         elif parsed.path == "/login":
             self._send(401, {"error": "invalid credentials"})
+        elif parsed.path.startswith("/api/"):
+            if self.headers.get("Authorization", "").startswith("Bearer "):
+                self._send(200, {"data": {"id": parsed.path.rsplit("/", 1)[-1]}})
+            else:
+                self._send(401, {"error": "unauthenticated"})
         else:
             self._send(404, {"error": "not found"})
 
     def do_POST(self):
         length = int(self.headers.get("Content-Length", 0))
         body = json.loads(self.rfile.read(length) or b"{}")
-        if self.path == "/rest/user/login":
-            email = body.get("email", "")
-            if email == "'":
-                self._send(500, {"error": "SQLITE_ERROR: near syntax error"})
-            elif "' OR 1=1" in email:
-                self._send(200, {"authentication": {"token": "eyJmYW...oken"}})
-            elif email == WEAK["email"] and body.get("password") == WEAK["password"]:
-                self._send(200, {"authentication": {"token": "***"}})
-            else:
-                self._send(401, {"error": "invalid credentials"})
-        elif self.path == "/login":
+        if self.path == "/login":
             email = body.get("username", body.get("email", ""))
             if email == "'":
                 self._send(500, {"error": "SQL syntax error near '"})
@@ -96,7 +78,7 @@ class JuiceShopMock(BaseHTTPRequestHandler):
 class ActiveVaptTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), JuiceShopMock)
+        cls.server = ThreadingHTTPServer(("127.0.0.1", 0), TestAppMock)
         cls.port = cls.server.server_address[1]
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.thread.start()
@@ -159,7 +141,7 @@ class ActiveVaptTests(unittest.TestCase):
         self.assertTrue(token)
 
     def test_exploit_jwt_none(self):
-        finding = active_vapt.exploit_jwt_none(self.client(), True, probe_path="/rest/basket/1")
+        finding = active_vapt.exploit_jwt_none(self.client(), True, probe_path="/api/baskets/1")
         self.assertEqual(finding.finding_id, "jwt-none-accepted")
 
     def test_exploit_idor(self):
@@ -227,13 +209,14 @@ class ActiveVaptTests(unittest.TestCase):
                                       scope=Scope.for_testing("127.0.0.1", self.port),
                                       client=self.client(), report_dir=tmp)
         ids = {f["finding_id"] for f in result["assessment"]["findings"]}
-        self.assertIn("sqli-auth-bypass", ids)
+        # Generic SQLi exploit produces sqli-login finding
+        self.assertTrue(any("sqli" in fid for fid in ids))
 
     def test_mcp_scope_tool(self):
-            scope = mcp_server.vapt_scope()
-            self.assertEqual(scope["target"], "http://example.com:80")
-            # exploit_requires_approval is now False (can be disabled via auto_approve)
-            self.assertFalse(scope["exploit_requires_approval"])
+        scope = mcp_server.vapt_scope()
+        self.assertEqual(scope["target"], "http://example.com:80")
+        # exploit_requires_approval is now False (can be disabled via auto_approve)
+        self.assertFalse(scope["exploit_requires_approval"])
 
     def test_mcp_exploit_refuses_without_token(self):
         result = mcp_server.vapt_exploit("not-a-real-token", "", "http://example.com:80")

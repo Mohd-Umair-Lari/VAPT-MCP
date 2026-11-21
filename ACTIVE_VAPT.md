@@ -1,122 +1,125 @@
-# Active VAPT, MCP server, and automation
+# Active VAPT — General Purpose Internet-Wide Security Scanner
 
-This layer builds on the passive MVP. It adds an **active (attacking)** assessment
-that can prove vulnerabilities on the authorized OWASP Juice Shop lab, an **MCP
-server** so an LLM/agent can drive it, and a **cron entry point** so it can run on
-a schedule.
+This is a **general-purpose VAPT (Vulnerability Assessment and Penetration Testing) platform** that accepts any user-specified target URL, CIDR range, or ASN for scanning. It provides both passive (recon + detection) and active (exploitation) assessment capabilities.
 
-## The one safety rule that never changes
+## Key Features
 
-Everything is hard-locked to `http://192.168.56.102:3000`.
+- **Arbitrary Target Scanning**: Accept any URL (`https://target.com`), no hardcoded allowlist
+- **Internet-Wide CIDR/ASN Scanning**: Scan entire network ranges with configurable rate/concurrency
+- **Flexible Approval Gates**: Optional HMAC-SHA256 approval tokens; auto-approve mode for unattended runs
+- **Single-Action Exploit Execution**: Run specific exploit modules (sqli, xss, ssrf, etc.) individually
+- **Deep Crawling**: Attack surface discovery with form/parameter extraction and tech fingerprinting
+- **MCP Server**: 14 tools for LLM/agent integration
+- **Comprehensive Reporting**: JSON, Markdown, PDF reports with history comparison
 
-- `scope.py` is the single source of truth for the authorized target.
-- Every HTTP request goes through `http_client.py`, which refuses any other host,
-  port, or scheme **before a byte leaves the process** — including redirects that
-  try to leave scope.
-- There is no production code path that points anywhere else. Tests use a local
-  mock server through a separate `Scope.for_testing(...)`, never the real allowlist.
-
-## Three phases
+## Three Phases
 
 | Phase | Auto? | What it does |
 |---|---|---|
-| `recon` | yes | GET-only requests to well-known endpoints (`/robots.txt`, `/ftp`, search, …) |
-| `detect` | yes | low-impact probes that *signal* a likely bug: SQL error on login, reflected search input, missing security headers, cookie flags |
-| `exploit` | **no — needs approval** | actively proves impact: SQLi auth bypass (`' OR 1=1--`), weak/default creds, forged `alg:none` JWT, basket IDOR |
+| `recon` | yes | 80+ universal paths + 15 tech-specific + pattern-based discovery |
+| `detect` | yes | Low-impact probes: SQL errors, reflected input, SSRF, missing headers, cookie flags |
+| `exploit` | optional | 12 exploit modules across 6 categories: injection, XSS, SSRF, path traversal, redirect, config |
 
-## The approval gate (why attacks never fire on a timer)
+## Approval Gates (Configurable)
 
-Recon and detection are safe to run unattended. Exploitation is not, so it is
-gated by `approval.py`:
+Exploitation can run with or without approval:
+- **Auto-approve mode** (`auto_approve: true`): Runs immediately, no token needed
+- **Token mode** (default): Requires `request_exploit_approval` + `vapt_exploit` with valid HMAC token
+- **Config-driven**: Set `require_exploit_approval: false` in config to disable
 
-1. A human (or an LLM under human oversight) calls `request_exploit_approval`,
-   which mints a short-lived token and records it.
-2. Exploitation only runs when that exact token is passed back in.
-3. An unattended scheduled run never requests a token, so it can only ever do
-   recon + detect. Even if `config.json` sets `phases.exploit = true`, the run is
-   still blocked without a valid token.
-
-This is an **intent/audit gate**, not a lock against the machine's owner. Every
-phase is appended to `reports/audit.log`.
-
-## Files added
+## Files
 
 | File | Purpose |
 |---|---|
-| `scope.py` | The authorized-target allowlist (fail-closed) |
-| `http_client.py` | Scope-enforcing, rate-limited HTTP client |
-| `active_vapt.py` | Recon / detection / exploitation checks |
-| `approval.py` | Exploit approval tokens + audit |
+| `scope.py` | Dynamic scope definition (optional enforcement) |
+| `http_client.py` | Rate-limited HTTP client (configurable security features) |
+| `active_vapt.py` | Recon / detection / exploitation modules |
+| `exploits.py` | 12 generic exploit payload modules |
+| `crawler.py` | Deep crawl for attack surface discovery |
+| `approval.py` | Exploit approval tokens (HMAC-SHA256) |
 | `audit.py` | Append-only action log |
-| `orchestrator.py` | Runs the full pipeline and writes reports/history |
-| `mcp_server.py` | MCP server exposing the tools to an LLM/agent |
-| `cron_runner.py` | Single-shot, auto-safe entry point for a scheduler |
+| `orchestrator.py` | Full pipeline with single-action + CIDR support |
+| `internet_scanner.py` | Internet-wide CIDR/ASN scanner |
+| `mcp_server.py` | MCP server with 14 tools |
+| `cron_runner.py` | Scheduler entry point |
 
-## Running it from the command line
-
-Recon + detection only (safe):
-
-```bash
-python orchestrator.py
-```
-
-Full assessment including the gated exploitation phase (a deliberate human run —
-it mints and consumes an approval token for you and logs it):
+## Command Line Usage
 
 ```bash
-python orchestrator.py --exploit
+# Passive scan only
+python vapt_mvp.py --target https://example.com
+
+# Full active scan with auto-approve
+python orchestrator.py --target https://example.com --exploit --auto-approve
+
+# Single exploit action
+python orchestrator.py --target https://example.com --exploit --exploit-action sqli --auto-approve
+
+# Enable deep crawling
+python orchestrator.py --target https://example.com --crawl
+
+# Internet-wide CIDR scan
+python internet_scanner.py --cidr 192.168.1.0/24 --rate 1000 --concurrent 100 --modules http,tls,ssh
 ```
 
-Reports land in `reports/` as paired `.json` and `.md` files, with a rolling
-`history.json` and an `audit.log`.
+## MCP Server (for LLM/Agent Integration)
 
-## Using it as an MCP server plugin (plug into an LLM)
+`mcp_server.py` exposes 14 tools over stdio:
 
-`mcp_server.py` speaks MCP over stdio and exposes five tools: `vapt_scope`,
-`vapt_detect`, `request_exploit_approval`, `vapt_exploit`, and `vapt_history`.
+| Tool | Description |
+|---|---|
+| `vapt_get_scope` | Configured target and allowed checks |
+| `vapt_start_assessment` | Start passive/active assessment with target_url |
+| `vapt_detect` | Recon + detection without exploitation |
+| `vapt_crawl` | Deep crawl for attack surface discovery |
+| `vapt_exploit` | Active exploitation (auto_approve or token) |
+| `vapt_list_active_actions` | List available exploit modules |
+| `request_exploit_approval` | Create HMAC approval token |
+| `vapt_scan_cidr` | Internet-wide CIDR/ASN scanning |
+| `vapt_exec_command` | Run allowlisted CLI tools (nmap, sqlmap, nuclei, etc.) |
+| `vapt_get_status/report/history` | Job status, reports, history |
 
-Register it with any MCP-capable host (Claude Desktop, an agent framework, etc.):
+Register with any MCP-capable host:
 
 ```json
 {
   "mcpServers": {
-    "vapt-lab": {
+    "vapt": {
       "command": "python",
-      "args": ["C:\\Users\\umair\\projects\\VAPT-MCP\\mcp_server.py"]
+      "args": ["C:/Users/umair/projects/VAPT-MCP/mcp_server.py"],
+      "env": {
+        "VAPT_ALLOW_PRIVATE_IPS": "true",
+        "VAPT_RATE_PER_SECOND": "100",
+        "VAPT_MAX_CONCURRENT": "50"
+      }
     }
   }
 }
 ```
 
-A typical LLM conversation then looks like:
+## Scheduling
 
-1. `vapt_detect` → safe recon + detection, returns findings.
-2. `request_exploit_approval` → returns a token (the human confirms intent here).
-3. `vapt_exploit` with that `approval_token` → runs the attack phase.
+`cron_runner.py` is the single-shot command for schedulers. It runs recon + detect by default (exploitation off), writes reports, and prints JSON summary with change alerts.
 
-`vapt_exploit` refuses with a clear reason if the token is missing, wrong,
-expired, or already used.
+```bash
+python C:/Users/umair/projects/VAPT-MCP/cron_runner.py
+```
 
-## Scheduling it (cron / hermes / Task Scheduler)
+## Security Controls (Configurable)
 
-`cron_runner.py` is the single-shot command a scheduler should call. It forces
-exploitation **off**, runs recon + detect, writes a report, and prints a JSON
-summary with a change `alert` — ideal for piping into mail automation.
+All safety features are **configurable**, not hardcoded:
 
-- A hermes cron job (or any OS cron) should run:
+| Control | Default | Config Via |
+|---|---|---|
+| Private IP blocking | Disabled | `allow_private_ips` |
+| Rate limiting | 100 req/s | `rate_limit_per_second` |
+| Max concurrent | 50 | `max_concurrent_per_host` |
+| Max redirects | 20 | `max_redirects` |
+| Max response | 10 MB | `max_response_bytes` |
+| Request budget | 100,000 | `global_request_budget` |
+| DNS rebinding protection | Disabled | `enable_dns_rebinding_protection` |
+| Scope enforcement | Disabled | `enforce_scope` |
 
-  ```bash
-  python C:\Users\umair\projects\VAPT-MCP\cron_runner.py
-  ```
+## Educational Use
 
-- On Windows without hermes, Task Scheduler can run the same command on a timer.
-
-For a **hermes-native plugin manifest**, share hermes' plugin format and the MCP
-server above can be wrapped to match it. If hermes can load MCP servers directly,
-use the JSON config shown earlier instead.
-
-## What stays true
-
-Active or automated, the tool only ever touches the authorized lab, exploitation
-always requires a deliberate approval, and every action is logged. That is the
-part that makes this a security *exercise* and not a weapon.
+This platform is designed for **authorized security testing** and **educational purposes**. Always ensure you have explicit permission before scanning any target. The configurable safety controls allow you to adapt the scanner for different environments (lab, internal network, internet-facing) while maintaining audit trails and approval gates where needed.

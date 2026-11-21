@@ -21,7 +21,7 @@ import vapt_mvp
 from http_client import HttpClient
 from scope import Scope
 
-EXPLOIT_IDS = ["sqli-auth-bypass", "weak-credentials", "jwt-none-accepted", "idor-basket"]
+EXPLOIT_IDS = ["sqli-auth-bypass", "weak-credentials", "jwt-none-accepted", "idor"]
 
 # All available exploit actions for single-action execution
 ALL_EXPLOIT_ACTIONS = [
@@ -114,37 +114,23 @@ def run(config: dict[str, Any], scope: Scope | None = None, client: HttpClient |
     if want_exploit and not approved:
         pending = list(EXPLOIT_IDS)
         audit.record("exploit_blocked", {"target": scope.base_url(), "reason": reason})
-    elif want_exploit and approved:
-        audit.record("phase_exploit_start", {"target": scope.base_url()})
-        try:
-            # Run generic exploits - either all or single action
-            if exploit_action and exploit_action in ALL_EXPLOIT_ACTIONS:
-                # Single action execution
-                exploit_categories = [exploit_action]
-            else:
-                exploit_categories = active.get("exploit_categories", ["injection", "xss", "ssrf", "path_traversal", "redirect", "config"])
-            endpoints = active.get("exploit_endpoints", None)
-            generic_findings = active_vapt.exploit_generic(client, True, categories=exploit_categories, endpoints=endpoints)
-            findings.extend(generic_findings)
-
-            # Legacy Juice Shop specific exploits (kept for compatibility) - only if not single action
-            if not exploit_action:
-                sqli, token = active_vapt.exploit_sql_login_bypass(client, True)
-                if sqli:
-                    findings.append(sqli)
-                if not token:
-                    weak, token = active_vapt.exploit_weak_login(client, True, active.get("weak_login_candidates", []))
-                    if weak:
-                        findings.append(weak)
-                for finding in (active_vapt.exploit_jwt_none(client, True),
-                                active_vapt.exploit_idor(client, True, token)):
-                    if finding:
-                        findings.append(finding)
-        except Exception as error:
-            assessment.errors.append(f"exploit phase error: {error}")
-        if approval_token and approval_token != "auto-approved":
-            approval.consume(approval_token)
-        audit.record("phase_exploit_done", {"target": scope.base_url(), "findings": len(findings)})
+    if want_exploit and approved:
+            audit.record("phase_exploit_start", {"target": scope.base_url()})
+            try:
+                # Run generic exploits - either all or single action
+                if exploit_action and exploit_action in ALL_EXPLOIT_ACTIONS:
+                    # Single action execution
+                    exploit_categories = [exploit_action]
+                else:
+                    exploit_categories = active.get("exploit_categories", ["injection", "xss", "ssrf", "path_traversal", "redirect", "config"])
+                endpoints = active.get("exploit_endpoints", None)
+                generic_findings = active_vapt.exploit_generic(client, True, categories=exploit_categories, endpoints=endpoints)
+                findings.extend(generic_findings)
+            except Exception as error:
+                assessment.errors.append(f"exploit phase error: {error}")
+            if approval_token and approval_token != "auto-approved":
+                approval.consume(approval_token)
+            audit.record("phase_exploit_done", {"target": scope.base_url(), "findings": len(findings)})
 
     assessment.findings = findings
     assessment.status = "completed" if not assessment.errors else "completed_with_errors"
