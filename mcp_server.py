@@ -30,7 +30,7 @@ TOOLS = [
     {"name": "vapt_get_scope", "description": "Return the configured target and allowed checks.",
      "inputSchema": {"type": "object", "properties": {}, "additionalProperties": True}},
     {"name": "vapt_start_assessment", "description": "Start an assessment against a target URL supplied for this run.",
-     "inputSchema": {"type": "object", "properties": {"mode": {"type": "string", "enum": ["passive", "active"]}, "target_url": {"type": "string"}, "exploit_categories": {"type": "string"}, "crawl": {"type": "boolean"}, "enforce_scope": {"type": "boolean"}, "auto_approve": {"type": "boolean"}}, "additionalProperties": True}},
+     "inputSchema": {"type": "object", "properties": {"mode": {"type": "string", "enum": ["passive", "active"]}, "target_url": {"type": "string"}, "exploit_categories": {"type": "string"}, "crawl": {"type": "boolean"}, "enforce_scope": {"type": "boolean"}, "approval_token": {"type": "string"}, "confirmation": {"type": "string"}, "auto_approve": {"type": "boolean"}}, "additionalProperties": True}},
     {"name": "vapt_get_status", "description": "Get the status of an assessment job.",
      "inputSchema": {"type": "object", "required": ["job_id"], "properties": {"job_id": {"type": "string"}}, "additionalProperties": True}},
     {"name": "vapt_get_report", "description": "Return the completed assessment and report paths for a job.",
@@ -71,7 +71,7 @@ def _load_scope() -> Scope:
 def scope() -> dict[str, Any]:
     sc = _load_scope()
     return {"target": sc.base_url(), "phases": ["recon", "detect", "exploit"],
-            "exploit_requires_approval": False}  # Can be disabled via auto_approve
+            "exploit_requires_approval": False}
 
 
 def vapt_scope() -> dict[str, Any]:
@@ -190,12 +190,12 @@ def vapt_scan_cidr(cidr: str = "", ports: str = "80,443,8080,8443", modules: str
         return {"status": "error", "message": str(e)}
 
 
-def run_job(job_id: str, target_url: str | None = None, mode: str = "passive", exploit_categories: str = "", crawl: bool = False, auto_approve: bool = False) -> None:
+def run_job(job_id: str, target_url: str | None = None, mode: str = "passive", exploit_categories: str = "", crawl: bool = False, auto_approve: bool = False, approval_token: str = "", confirmation: str = "") -> None:
     try:
         with LOCK:
             JOBS[job_id]["status"] = "running"
         if mode == "active":
-            output = vapt_exploit("", "", target_url or "", exploit_categories, "", auto_approve)
+            output = vapt_exploit(approval_token, confirmation, target_url or "", exploit_categories, "", auto_approve)
         elif crawl:
             output = vapt_crawl(target_url or "")
         else:
@@ -212,13 +212,18 @@ def start_assessment(arguments: dict[str, Any]) -> dict[str, Any]:
     mode = arguments.get("mode", "passive")
     if mode not in {"passive", "active"}:
         raise ValueError("Mode must be passive or active")
-    target = arguments.get("target_url") or scope()["target"]
+    target = arguments.get("target_url") or (scope()["target"] if mode == "passive" else "")
+    if not target:
+        raise ValueError("target_url is required for an active assessment")
     auto_approve = arguments.get("auto_approve", False)
+    approval_token = arguments.get("approval_token", "")
+    confirmation = arguments.get("confirmation", "")
     job_id = "job-" + uuid.uuid4().hex[:12]
     with LOCK:
         JOBS[job_id] = {"job_id": job_id, "status": "queued", "target": target, "mode": mode, "auto_approve": auto_approve}
-    threading.Thread(target=run_job, args=(job_id, arguments.get("target_url"), mode,
-                                           arguments.get("exploit_categories", ""), arguments.get("crawl", False), auto_approve), daemon=True).start()
+    threading.Thread(target=run_job, args=(job_id, target, mode,
+                                           arguments.get("exploit_categories", ""), arguments.get("crawl", False), auto_approve,
+                                           approval_token, confirmation), daemon=True).start()
     return {"job_id": job_id, "status": "queued", "target": target, "mode": mode, "auto_approve": auto_approve}
 
 

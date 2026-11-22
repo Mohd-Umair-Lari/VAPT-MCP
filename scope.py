@@ -41,7 +41,10 @@ class Scope:
         return cls(scheme, host, port, enforce=False)
 
     def base_url(self) -> str:
-        return f"{self.scheme}://{self.host}:{self.port}"
+            # Don't include default ports (80 for http, 443 for https) to match user input
+            if (self.scheme == "http" and self.port == 80) or (self.scheme == "https" and self.port == 443):
+                return f"{self.scheme}://{self.host}"
+            return f"{self.scheme}://{self.host}:{self.port}"
 
     def contains(self, url: str) -> bool:
         parsed = urlparse(url)

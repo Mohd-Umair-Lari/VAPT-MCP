@@ -214,25 +214,24 @@ class ActiveVaptTests(unittest.TestCase):
 
     def test_mcp_scope_tool(self):
         scope = mcp_server.vapt_scope()
-        self.assertEqual(scope["target"], "http://example.com:80")
-        # exploit_requires_approval is now False (can be disabled via auto_approve)
+        self.assertEqual(scope["target"], "http://example.com")
         self.assertFalse(scope["exploit_requires_approval"])
 
     def test_mcp_exploit_refuses_without_token(self):
-        result = mcp_server.vapt_exploit("not-a-real-token", "", "http://example.com:80")
+        result = mcp_server.vapt_exploit("not-a-real-token", "", "http://example.com")
         self.assertEqual(result["status"], "refused")
 
     def test_mcp_exploit_requires_execution_confirmation(self):
-        result = mcp_server.vapt_exploit("not-a-real-token", "", "http://example.com:80")
+        result = mcp_server.vapt_exploit("not-a-real-token", "", "http://example.com")
         self.assertEqual(result["status"], "refused")
 
     def test_mcp_lists_active_actions_without_executing(self):
-        result = mcp_server.vapt_list_active_actions("http://example.com:80")
+        result = mcp_server.vapt_list_active_actions("http://example.com")
         self.assertFalse(result["executed"])
         self.assertTrue(result["actions"])
 
     def test_mcp_approval_requires_explicit_phrase(self):
-        result = mcp_server.request_exploit_approval("", "http://example.com:80")
+        result = mcp_server.request_exploit_approval("", "http://example.com")
         self.assertEqual(result["status"], "pending")
 
 
