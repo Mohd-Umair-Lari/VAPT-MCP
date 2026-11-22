@@ -47,19 +47,19 @@ Exploitation can run with or without approval:
 
 ```bash
 # Passive scan only
-python vapt_mvp.py --target https://example.com
+python scripts/vapt_mvp.py --target https://example.com
 
 # Full active scan with auto-approve
-python orchestrator.py --target https://example.com --exploit --auto-approve
+python scripts/orchestrator.py --target https://example.com --exploit --auto-approve
 
 # Single exploit action
-python orchestrator.py --target https://example.com --exploit --exploit-action sqli --auto-approve
+python scripts/orchestrator.py --target https://example.com --exploit --exploit-action sqli --auto-approve
 
 # Enable deep crawling
-python orchestrator.py --target https://example.com --crawl
+python scripts/orchestrator.py --target https://example.com --crawl
 
 # Internet-wide CIDR scan
-python internet_scanner.py --cidr 192.168.1.0/24 --rate 1000 --concurrent 100 --modules http,tls,ssh
+python scripts/internet_scanner.py --cidrs 192.168.1.0/24 --rate 1000 --concurrent 100 --modules http,tls,ssh
 ```
 
 ## MCP Server (for LLM/Agent Integration)
@@ -86,7 +86,7 @@ Register with any MCP-capable host:
   "mcpServers": {
     "vapt": {
       "command": "python",
-      "args": ["C:/Users/umair/projects/VAPT-MCP/mcp_server.py"],
+      "args": ["<cloned-repo>/scripts/mcp_server.py"],
       "env": {
         "VAPT_ALLOW_PRIVATE_IPS": "true",
         "VAPT_RATE_PER_SECOND": "100",

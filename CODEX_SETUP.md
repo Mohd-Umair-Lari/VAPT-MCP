@@ -12,7 +12,7 @@ In Codex MCP settings, add a local stdio server. Replace `<cloned-repo>` with th
 ```text
 Name: vapt
 Command: <cloned-repo>/.venv/bin/python
-Arguments: <cloned-repo>/mcp_server.py
+Arguments: <cloned-repo>/scripts/mcp_server.py
 Transport: stdio
 ```
 

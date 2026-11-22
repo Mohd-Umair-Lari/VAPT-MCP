@@ -152,7 +152,7 @@ def run(config: dict[str, Any], scope: Scope | None = None, client: HttpClient |
 
 def _cli_run(exploit: bool, target_url: str | None = None, crawl: bool = False,
              exploit_categories: str | None = None, exploit_action: str | None = None, auto_approve: bool = False) -> dict[str, Any]:
-    config = json.loads(Path(__file__).with_name("config.json").read_text(encoding="utf-8"))
+    config = json.loads((Path(__file__).resolve().parent.parent / "config.json").read_text(encoding="utf-8"))
     if target_url:
         config["target"] = json.loads(json.dumps(Scope.from_url(target_url).__dict__))
         config["target"]["base_path"] = "/"

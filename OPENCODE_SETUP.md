@@ -16,7 +16,7 @@ In the OpenCode project configuration, usually `opencode.json`, add:
       "type": "local",
       "command": [
         "<cloned-repo>/.venv/bin/python",
-        "<cloned-repo>/mcp_server.py"
+        "<cloned-repo>/scripts/mcp_server.py"
       ],
       "enabled": true
     }

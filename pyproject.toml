@@ -32,14 +32,14 @@ classifiers = [
 ]
 
 [project.scripts]
-vapt = "vapt_mvp:main"
-vapt-passive = "vapt_mvp:main"
-vapt-active = "orchestrator:main"
-vapt-mcp = "mcp_server:main"
-vapt-mcp-tools = "mcp_tools:main"
-vapt-agent = "agent_workflow:main"
-vapt-llm = "llm_workflow:main"
-vapt-scan = "internet_scanner:main"
+vapt = "scripts.vapt_mvp:main"
+vapt-passive = "scripts.vapt_mvp:main"
+vapt-active = "scripts.orchestrator:main"
+vapt-mcp = "scripts.mcp_server:main"
+vapt-mcp-tools = "scripts.mcp_tools:main"
+vapt-agent = "scripts.agent_workflow:main"
+vapt-llm = "scripts.llm_workflow:main"
+vapt-scan = "scripts.internet_scanner:main"
 
 [project.urls]
 Homepage = "https://github.com/your-org/vapt-agent"

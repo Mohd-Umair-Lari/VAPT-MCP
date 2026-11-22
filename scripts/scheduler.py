@@ -34,7 +34,7 @@ def run_foreground(schedule: Schedule, runner: Callable[[str | None], dict[str, 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run the opt-in VAPT scheduler")
-    parser.add_argument("--schedule", type=Path, default=Path(__file__).with_name("schedule.json")); parser.add_argument("--once", action="store_true")
+    parser.add_argument("--schedule", type=Path, default=Path(__file__).resolve().parent.parent / "schedule.json"); parser.add_argument("--once", action="store_true")
     args = parser.parse_args(); schedule = load_schedule(args.schedule)
     print(json.dumps(run_once(schedule) if args.once else run_foreground(schedule), indent=2)); return 0
 

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 import automation
 
-DEFAULT_HISTORY = Path(__file__).resolve().parent / "reports" / "history.json"
+DEFAULT_HISTORY = Path(__file__).resolve().parent.parent / "reports" / "history.json"
 
 def load_history(path: Path = DEFAULT_HISTORY) -> list[dict[str, Any]]:
     if not path.exists(): return []

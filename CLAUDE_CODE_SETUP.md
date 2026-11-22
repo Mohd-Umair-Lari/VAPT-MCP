@@ -14,7 +14,7 @@ Create or edit `.mcp.json` in the cloned project:
   "mcpServers": {
     "vapt": {
       "command": "<cloned-repo>/.venv/bin/python",
-      "args": ["<cloned-repo>/mcp_server.py"]
+      "args": ["<cloned-repo>/scripts/mcp_server.py"]
     }
   }
 }

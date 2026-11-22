@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-DEFAULT_AUDIT = Path(__file__).resolve().parent / "reports" / "audit.log"
+DEFAULT_AUDIT = Path(__file__).resolve().parent.parent / "reports" / "audit.log"
 
 
 def _utc() -> str:
