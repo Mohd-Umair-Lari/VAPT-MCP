@@ -5,6 +5,7 @@ automatically; exploitation runs only when a valid approval token is supplied.
 Reuses vapt_mvp's Assessment/report writer and history for a consistent record.
 
 Supports unrestricted scanning with optional approval gates and single-action execution.
+Auto-generates professional PDF reports after every scan.
 """
 from __future__ import annotations
 
@@ -18,6 +19,7 @@ import approval
 import audit
 import history
 import vapt_mvp
+import pdf_report
 from http_client import HttpClient
 from scope import Scope
 
@@ -144,9 +146,14 @@ def run(config: dict[str, Any], scope: Scope | None = None, client: HttpClient |
 
     data = vapt_mvp.asdict(assessment)
     json_path, md_path = vapt_mvp.write_reports(assessment, report_dir)
+    # Auto-generate professional PDF report
+    try:
+        pdf_path = pdf_report.generate_pdf(data, report_dir)
+    except Exception as e:
+        pdf_path = f"PDF generation failed: {e}"
     hist = history.record_assessment(data, report_dir / "history.json")
     exploit_status = assessment.summary["exploit_status"]
-    return {"assessment": data, "reports": {"json": str(json_path), "markdown": str(md_path)},
+    return {"assessment": data, "reports": {"json": str(json_path), "markdown": str(md_path), "pdf": str(pdf_path)},
             "history": hist, "pending_exploits": pending, "exploit_status": exploit_status}
 
 

@@ -9,6 +9,13 @@ from typing import Any
 
 from scope import assert_config_authorized
 
+# Auto-generate professional PDF reports
+try:
+    import pdf_report
+    PDF_AVAILABLE = True
+except ImportError:
+    PDF_AVAILABLE = False
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG = PROJECT_ROOT / "config.json"
 DEFAULT_REPORT_DIR = PROJECT_ROOT / "reports"
@@ -232,6 +239,12 @@ def main() -> int:
             config = load_config(args.config)
         assessment = run_assessment(config)
         paths = write_reports(assessment, args.report_dir)
+        # Auto-generate professional PDF report
+        if PDF_AVAILABLE:
+            try:
+                pdf_report.generate_pdf(asdict(assessment), args.report_dir)
+            except Exception as e:
+                print(f"PDF generation warning: {e}", file=sys.stderr)
     except (OSError, ValueError, json.JSONDecodeError) as error:
         print(f"Assessment could not start: {error}", file=sys.stderr)
         return 2
