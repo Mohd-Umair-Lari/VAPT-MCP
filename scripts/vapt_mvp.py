@@ -9,8 +9,9 @@ from typing import Any
 
 from scope import assert_config_authorized
 
-DEFAULT_CONFIG = Path(__file__).with_name("config.json")
-DEFAULT_REPORT_DIR = Path(__file__).resolve().parent / "reports"
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_CONFIG = PROJECT_ROOT / "config.json"
+DEFAULT_REPORT_DIR = PROJECT_ROOT / "reports"
 SAFE_RECON_PATHS = ["/robots.txt", "/sitemap.xml", "/.well-known/security.txt"]
 REQUIRED_HEADERS = {
     "content-security-policy": ("Missing Content-Security-Policy header", "medium"),

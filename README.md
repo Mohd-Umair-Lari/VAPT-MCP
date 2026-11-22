@@ -50,13 +50,13 @@ python -m pip install -r requirements.txt
 ### Passive Assessment (Safe, No Approval Needed)
 ```bash
 # The configured target
-python vapt_mvp.py
+python scripts/vapt_mvp.py
 
 # With custom output directory
-python vapt_mvp.py --target https://api.example.com --report-dir ./my-reports
+python scripts/vapt_mvp.py --target https://api.example.com --report-dir ./my-reports
 
 # Run the MCP server over stdio
-python mcp_server.py
+python scripts/mcp_server.py
 ```
 
 ### Active Assessment (Requires Approval)
@@ -68,9 +68,9 @@ python mcp_server.py
 ### MCP integration
 ```bash
 # Start MCP server (stdio transport)
-python mcp_server.py
+python scripts/mcp_server.py
 
-# Configure the absolute path to mcp_server.py in the harness MCP config.
+# Configure the absolute path to scripts/mcp_server.py in the harness MCP config.
 # See HERMES_SETUP.md, CLAUDE_CODE_SETUP.md, OPENCODE_SETUP.md, and CODEX_SETUP.md.
 ```
 
@@ -199,7 +199,8 @@ VAPT-MCP/
 ├── scope.py             # Target scope definition & validation
 ├── approval.py          # HMAC-SHA256 approval token system
 ├── harness.py           # Constrained command execution
-├── mcp_server.py        # MCP stdio server (Hercules/Hermes)
+├── scripts/             # Python implementation and CLI entry points
+│   ├── mcp_server.py    # MCP stdio server (Hermes)
 ├── mcp_tools.py         # MCP tool adapter
 ├── pdf_report.py         # Compact PDF report generator
 ├── internet_scanner.py   # Separate CIDR/ASN internet scanner
@@ -263,7 +264,7 @@ docker build -t vapt-agent .
 docker run --rm vapt-agent vapt_mvp.py --target https://example.com
 
 # Run MCP server
-docker run -i --rm vapt-agent mcp_server.py
+docker run -i --rm vapt-agent python scripts/mcp_server.py
 ```
 
 ## 🔌 Extending the Agent

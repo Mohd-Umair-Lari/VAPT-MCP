@@ -23,4 +23,4 @@ USER vapt
 ENTRYPOINT ["python"]
 
 # Default command shows help
-CMD ["vapt_mvp.py", "--help"]
+CMD ["python", "scripts/vapt_mvp.py", "--help"]

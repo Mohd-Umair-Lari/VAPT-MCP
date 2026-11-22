@@ -5,7 +5,8 @@ import unittest
 from pathlib import Path
 
 # Allow direct execution with: python tests/test_vapt_mvp.py
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+sys.path.insert(1, str(Path(__file__).resolve().parents[1]))
 import vapt_mvp
 import mcp_tools
 import agent_workflow

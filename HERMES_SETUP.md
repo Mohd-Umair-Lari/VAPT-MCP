@@ -20,7 +20,7 @@ Add the server under `mcp_servers:`. Replace `<cloned-repo>` with the absolute p
 vapt:
   command: "<cloned-repo>/.venv/Scripts/python.exe"
   args:
-    - "<cloned-repo>/mcp_server.py"
+    - "<cloned-repo>/scripts/mcp_server.py"
   timeout: 120
 ```
 

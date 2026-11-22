@@ -24,11 +24,11 @@ from typing import Any
 import audit
 
 
-DEFAULT_PENDING = Path(__file__).resolve().parent / "reports" / "pending_approval.json"
+DEFAULT_PENDING = Path(__file__).resolve().parent.parent / "reports" / "pending_approval.json"
 TTL_MINUTES = 30
 # Secret key for HMAC signing - in production, load from secure config/env
 # This should be a long random string, ideally from a key management system
-SECRET_KEY_FILE = Path(__file__).resolve().parent / "reports" / ".approval_secret"
+SECRET_KEY_FILE = Path(__file__).resolve().parent.parent / "reports" / ".approval_secret"
 
 
 def _get_secret_key() -> bytes:

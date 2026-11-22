@@ -15,7 +15,7 @@ from scope import Scope, ScopeViolation
 
 
 def main() -> int:
-    config = json.loads(Path(__file__).with_name("config.json").read_text(encoding="utf-8"))
+    config = json.loads((Path(__file__).resolve().parent.parent / "config.json").read_text(encoding="utf-8"))
     active = {**config.get("active", {})}
     active["phases"] = {**active.get("phases", {}), "exploit": False}
     config = {**config, "active": active}

@@ -64,7 +64,7 @@ def result_text(value: Any) -> dict[str, Any]:
 
 def _load_scope() -> Scope:
     """Load the Scope from config.json."""
-    config = json.loads(Path(__file__).with_name("config.json").read_text(encoding="utf-8"))
+    config = json.loads((Path(__file__).resolve().parent.parent / "config.json").read_text(encoding="utf-8"))
     return Scope.from_config(config["target"])
 
 
@@ -82,7 +82,7 @@ def vapt_detect(target_url: str = "", enforce_scope: bool = False) -> dict[str, 
     if not target_url:
         target_url = scope()["target"]
     sc = Scope.from_url(target_url, enforce=enforce_scope)
-    config = json.loads(Path(__file__).with_name("config.json").read_text(encoding="utf-8"))
+    config = json.loads((Path(__file__).resolve().parent.parent / "config.json").read_text(encoding="utf-8"))
     config.setdefault("active", {})["phases"] = {"recon": True, "detect": True, "exploit": False}
     return orchestrator.run(config, scope=sc)
 
@@ -132,7 +132,7 @@ def vapt_exploit(approval_token: str = "", confirmation: str = "", target_url: s
         if not ok:
             return {"status": "refused", "reason": reason, "hint": "Call request_exploit_approval first."}
     
-    config = json.loads(Path(__file__).with_name("config.json").read_text(encoding="utf-8"))
+    config = json.loads((Path(__file__).resolve().parent.parent / "config.json").read_text(encoding="utf-8"))
     config.setdefault("active", {})["phases"] = {"recon": True, "detect": True, "exploit": True}
     if exploit_categories:
         config["active"]["exploit_categories"] = exploit_categories.split(",")
@@ -146,7 +146,7 @@ def vapt_crawl(target_url: str = "", max_depth: int = 3, max_pages: int = 100, e
     if not target_url:
         target_url = scope()["target"]
     sc = Scope.from_url(target_url, enforce=enforce_scope)
-    config = json.loads(Path(__file__).with_name("config.json").read_text(encoding="utf-8"))
+    config = json.loads((Path(__file__).resolve().parent.parent / "config.json").read_text(encoding="utf-8"))
     config.setdefault("active", {})["phases"] = {"recon": True, "detect": True, "exploit": False, "crawl": True}
     return orchestrator.run(config, scope=sc)
 
@@ -163,8 +163,8 @@ def vapt_scan_cidr(cidr: str = "", ports: str = "80,443,8080,8443", modules: str
     
     # Build command for internet_scanner.py
     cmd = [
-        sys.executable, "internet_scanner.py",
-        "--cidr", cidr,
+        sys.executable, str(Path(__file__).with_name("internet_scanner.py")),
+        "--cidrs", cidr,
         "--ports", ports,
         "--modules", modules,
         "--rate", str(rate),
@@ -172,7 +172,7 @@ def vapt_scan_cidr(cidr: str = "", ports: str = "80,443,8080,8443", modules: str
     ]
     
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=3600, cwd=Path(__file__).parent)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=3600, cwd=Path(__file__).resolve().parent.parent)
         return {
             "status": "completed" if result.returncode == 0 else "failed",
             "cidr": cidr,
