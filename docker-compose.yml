@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  vapt-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vapt-mcp
+    restart: unless-stopped
+    environment:
+      - VAPT_ALLOW_PRIVATE_IPS=true
+      - VAPT_RATE_PER_SECOND=100
+      - VAPT_MAX_CONCURRENT=50
+      - VAPT_MAX_REDIRECTS=10
+      - VAPT_MAX_RESPONSE_BYTES=5242880
+      - VAPT_REQUEST_BUDGET=10000
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./reports:/app/reports
+      - ./config.json:/app/config.json:ro
+    # For stdio mode (Hermes integration) - no ports needed
+    # For HTTP mode, uncomment ports:
+    # ports:
+    #   - "8000:8000"
+    # command: ["python", "scripts/mcp_server.py", "--http", "--port", "8000"]
+    # For stdio mode (default - for Hermes integration):
+    command: ["python", "-m", "mcp_server"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.path.insert(0, 'scripts'); import mcp_server; print('OK')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Optional: Run periodic scans via cron
+  vapt-cron:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vapt-cron
+    restart: unless-stopped
+    environment:
+      - VAPT_ALLOW_PRIVATE_IPS=true
+      - VAPT_RATE_PER_SECOND=50
+      - VAPT_MAX_CONCURRENT=20
+    volumes:
+      - ./reports:/app/reports
+      - ./config.json:/app/config.json:ro
+    entrypoint: ["cron", "-f"]
+    command: >
+      bash -c "
+        echo '0 9 * * * root python scripts/vapt_mvp.py --target https://example.com >> /app/reports/cron.log 2>&1' > /etc/cron.d/vapt-scan &&
+        chmod 0644 /etc/cron.d/vapt-scan &&
+        cron -f
+      "

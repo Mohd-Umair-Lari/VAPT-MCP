@@ -1,0 +1,73 @@
+[Unit]
+Description=VAPT MCP Server
+Documentation=https://github.com/yourusername/vapt-mcp
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+TimeoutStartSec=60
+TimeoutStopSec=30
+
+# Working directory
+WorkingDirectory=/opt/vapt-mcp
+
+# User and group (create vapt user: sudo useradd -r -s /bin/bash -d /opt/vapt-mcp vapt)
+User=vapt
+Group=vapt
+
+# Environment
+Environment=VAPT_ALLOW_PRIVATE_IPS=true
+Environment=VAPT_RATE_PER_SECOND=100
+Environment=VAPT_MAX_CONCURRENT=50
+Environment=VAPT_MAX_REDIRECTS=10
+Environment=VAPT_MAX_RESPONSE_BYTES=5242880
+Environment=VAPT_REQUEST_BUDGET=10000
+Environment=PYTHONUNBUFFERED=1
+
+# Start command - stdio mode for Hermes integration
+ExecStart=/usr/bin/docker run --rm \
+    --name vapt-mcp \
+    --network host \
+    -v /opt/vapt-mcp/reports:/app/reports \
+    -v /opt/vapt-mcp/config.json:/app/config.json:ro \
+    -e VAPT_ALLOW_PRIVATE_IPS=true \
+    -e VAPT_RATE_PER_SECOND=100 \
+    -e VAPT_MAX_CONCURRENT=50 \
+    -e VAPT_MAX_REDIRECTS=10 \
+    -e VAPT_MAX_RESPONSE_BYTES=5242880 \
+    -e VAPT_REQUEST_BUDGET=10000 \
+    vapt-mcp:latest \
+    python -m mcp_server
+
+# Alternative: HTTP mode (uncomment and comment above)
+# ExecStart=/usr/bin/docker run --rm \
+#     --name vapt-mcp \
+#     -p 8000:8000 \
+#     -v /opt/vapt-mcp/reports:/app/reports \
+#     -v /opt/vapt-mcp/config.json:/app/config.json:ro \
+#     -e VAPT_ALLOW_PRIVATE_IPS=true \
+#     -e VAPT_RATE_PER_SECOND=100 \
+#     -e VAPT_MAX_CONCURRENT=50 \
+#     -e VAPT_MAX_REDIRECTS=10 \
+#     -e VAPT_MAX_RESPONSE_BYTES=5242880 \
+#     -e VAPT_REQUEST_BUDGET=10000 \
+#     vapt-mcp:latest \
+#     python scripts/mcp_server.py --http --port 8000
+
+# Stop command
+ExecStop=/usr/bin/docker stop -t 30 vapt-mcp
+
+# Resource limits
+MemoryLimit=2G
+CPUQuota=200%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=vapt-mcp
+
+[Install]
+WantedBy=multi-user.target
