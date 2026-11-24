@@ -1,8 +1,3 @@
-"""
-Internet-Wide Scanner — CIDR/ASN input, massive parallelism, streaming output.
-Not a per-target VAPT agent. This is for authorized internet-wide scanning only.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -41,7 +36,6 @@ except ImportError:
 
 
 def _safe_dumps(obj) -> bytes:
-    """Serialize to bytes, handling both orjson and json fallback."""
     try:
         result = orjson.dumps(obj)
         # Ensure we always return bytes
@@ -53,7 +47,6 @@ def _safe_dumps(obj) -> bytes:
 
 
 def _safe_loads(data: bytes) -> dict:
-    """Deserialize from bytes, handling both orjson and json fallback."""
     try:
         return orjson.loads(data)
     except (TypeError, AttributeError):
@@ -66,7 +59,6 @@ def _safe_loads(data: bytes) -> dict:
 
 @dataclass(frozen=True)
 class ScanTarget:
-    """A single IP:port to scan."""
     ip: str
     port: int
     protocol: str = "tcp"  # tcp, udp
@@ -77,7 +69,6 @@ class ScanTarget:
 
 @dataclass(frozen=True)
 class ScanJob:
-    """Internet-wide scan job definition."""
     job_id: str
     name: str
     cidrs: list[str]                    # ["1.2.3.0/24", "2001:db8::/32"]
@@ -91,7 +82,6 @@ class ScanJob:
     resume: bool = False
     
     async def expand_targets(self) -> AsyncIterator[ScanTarget]:
-            """Expand CIDRs into individual IP:port targets."""
             for cidr_str in self.cidrs:
                 network = ipaddress.ip_network(cidr_str, strict=False)
                 for ip in network.hosts():
@@ -115,7 +105,6 @@ class ScanJob:
 
 @dataclass
 class ScanResult:
-    """Single scan result - streamed immediately."""
     timestamp: str
     job_id: str
     target: ScanTarget
@@ -145,7 +134,6 @@ class ScanResult:
 # ============================================================
 
 class ScanModule(ABC):
-    """Base class for scan modules."""
     
     name: str = "base"
     default_ports: list[int] = []
@@ -157,7 +145,6 @@ class ScanModule(ABC):
 
 
 class HTTPModule(ScanModule):
-    """HTTP/HTTPS banner grab + basic checks."""
     name = "http"
     default_ports = [80, 8080, 8000, 8888, 3000, 5000, 8008, 8880]
     
@@ -246,7 +233,6 @@ class HTTPModule(ScanModule):
 
 
 class TLSModule(ScanModule):
-    """TLS certificate grabber."""
     name = "tls"
     default_ports = [443, 8443, 9443, 993, 995, 587, 465]
     
@@ -319,7 +305,6 @@ class TLSModule(ScanModule):
 
 
 class SSHModule(ScanModule):
-    """SSH banner grab."""
     name = "ssh"
     default_ports = [22, 2222]
     
@@ -363,7 +348,6 @@ class SSHModule(ScanModule):
 
 
 class RDPModule(ScanModule):
-    """RDP security check (NLA detection)."""
     name = "rdp"
     default_ports = [3389]
     
@@ -433,7 +417,6 @@ MODULES = {
 # ============================================================
 
 class TokenBucket:
-    """Global rate limiter."""
     def __init__(self, rate: int):
         self.rate = rate
         self.tokens = rate
@@ -456,7 +439,6 @@ class TokenBucket:
 
 
 class InternetWideScanner:
-    """Internet-wide scanner with streaming results and checkpointing."""
     
     def __init__(self, job: ScanJob):
         self.job = job
@@ -519,7 +501,6 @@ class InternetWideScanner:
         return f"{target.ip}:{target.port}"
     
     async def run(self) -> AsyncIterator[ScanResult]:
-        """Main execution loop - streams results as they complete."""
         self.running = True
         self.completed_targets = getattr(self, 'completed_targets', set())
         
@@ -623,7 +604,6 @@ class InternetWideScanner:
 # ============================================================
 
 async def run_scan(job: ScanJob):
-    """Run a scan job and stream results."""
     async with InternetWideScanner(job) as scanner:
         async for result in scanner.run():
             # Results are already written to file, this is for monitoring

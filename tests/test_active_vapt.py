@@ -21,7 +21,6 @@ WEAK = {"email": "test@test.com", "password": "test"}
 
 
 class TestAppMock(BaseHTTPRequestHandler):
-    """Minimal stand-in for a generic web app so active checks can be tested offline."""
 
     def log_message(self, *args):  # keep test output quiet
         pass

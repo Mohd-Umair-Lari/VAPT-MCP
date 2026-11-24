@@ -1,4 +1,3 @@
-"""Explicitly started local scheduler for recurring safe assessments."""
 from __future__ import annotations
 import argparse, json, time
 from dataclasses import dataclass

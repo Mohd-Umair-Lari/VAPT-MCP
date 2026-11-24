@@ -1,17 +1,3 @@
-"""Scope-enforcing, rate-limited HTTP client for active checks.
-
-All active modules send requests through HttpClient so the authorized scope,
-redirect handling, and rate limits cannot be bypassed by an individual check.
-
-Security features (configurable for unrestricted scanning):
-- DNS rebinding protection (resolves and validates IPs before connecting) - optional
-- Private IP blocking (RFC 1918, RFC 4193, RFC 3927, RFC 6598, RFC 6890) - optional
-- Redirect limit enforcement
-- Response size limits
-- Per-host concurrency limits
-- Global request budget
-- Scope enforcement on every hop - optional
-"""
 from __future__ import annotations
 
 import ipaddress
@@ -49,7 +35,6 @@ PRIVATE_IPV6_RANGES = [
 
 
 def is_private_ip(ip: str) -> bool:
-    """Check if an IP address is in a private/reserved range."""
     try:
         addr = ipaddress.ip_address(ip)
         if addr.version == 4:
@@ -61,7 +46,6 @@ def is_private_ip(ip: str) -> bool:
 
 
 def resolve_hostname(hostname: str) -> list[str]:
-    """Resolve hostname to IP addresses with DNS rebinding protection."""
     try:
         addrs = socket.getaddrinfo(hostname, None, type=socket.SOCK_STREAM)
         return list({addr[4][0] for addr in addrs})
@@ -70,7 +54,6 @@ def resolve_hostname(hostname: str) -> list[str]:
 
 
 def validate_ips_allowed(ips: list[str], allow_private: bool = True) -> None:
-    """Validate that resolved IPs are allowed (not private unless explicitly allowed)."""
     if allow_private:
         return
     for ip in ips:
@@ -106,12 +89,10 @@ class HttpClient:
     _host_semaphores: dict[str, Any] = field(default_factory=dict, init=False, repr=False)
 
     def _check_budget(self) -> None:
-        """Check global request budget."""
         if self._request_count >= self.global_request_budget:
             raise RuntimeError(f"Global request budget exhausted ({self.global_request_budget} requests)")
 
     def _get_host_semaphore(self, host: str) -> Any:
-        """Get or create a semaphore for per-host concurrency control."""
         import threading
         if host not in self._host_semaphores:
             self._host_semaphores[host] = threading.Semaphore(self.max_concurrent_per_host)
@@ -127,7 +108,6 @@ class HttpClient:
         self._last_request = time.monotonic()
 
     def _validate_redirect(self, url: str, redirect_count: int) -> None:
-        """Validate redirect target is in scope and not excessive."""
         if redirect_count > self.max_redirects:
             raise ValueError(f"Redirect limit exceeded ({self.max_redirects})")
         if self.enforce_scope:

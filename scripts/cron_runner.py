@@ -1,9 +1,3 @@
-"""Single-shot entry point for an external scheduler (hermes cron / Task Scheduler).
-
-Runs the auto-safe pipeline (recon + detection) against the authorized lab and
-prints a JSON summary with any change alert. It forces exploitation off, so a
-scheduled run can never fire an attack on its own.
-"""
 from __future__ import annotations
 
 import json

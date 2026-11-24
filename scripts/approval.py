@@ -1,15 +1,3 @@
-"""Intent-gate for exploitation with optional cryptographic approval tokens.
-
-Recon and detection run automatically. Active exploitation can run with or without
-approval tokens. When approval is disabled (auto_approve=True), exploitation runs
-without human intervention. When enabled, requires an explicit approval token.
-
-Approval tokens are HMAC-SHA256 signed with a secret key, providing:
-- Integrity: tokens cannot be forged without the secret
-- Binding: tokens are bound to a specific target URL
-- Expiration: tokens have configurable TTL
-- Single-use: tokens are consumed after use
-"""
 from __future__ import annotations
 
 import hashlib
@@ -32,7 +20,6 @@ SECRET_KEY_FILE = Path(__file__).resolve().parent.parent / "reports" / ".approva
 
 
 def _get_secret_key() -> bytes:
-    """Get or create the HMAC secret key."""
     if SECRET_KEY_FILE.exists():
         return SECRET_KEY_FILE.read_bytes()
     # Generate new key
@@ -48,7 +35,6 @@ def _get_secret_key() -> bytes:
 
 
 def _sign_token(token: str, target_url: str, issued_at: str, expires_at: str) -> str:
-    """Create HMAC signature for approval token."""
     key = _get_secret_key()
     message = f"{token}|{target_url}|{issued_at}|{expires_at}".encode()
     signature = hmac.new(key, message, hashlib.sha256).hexdigest()
@@ -56,7 +42,6 @@ def _sign_token(token: str, target_url: str, issued_at: str, expires_at: str) ->
 
 
 def _verify_token(token: str, target_url: str, issued_at: str, expires_at: str, signature: str) -> bool:
-    """Verify HMAC signature for approval token."""
     expected = _sign_token(token, target_url, issued_at, expires_at)
     return hmac.compare_digest(expected, signature)
 
@@ -120,5 +105,4 @@ def consume(token: str, path: Path = DEFAULT_PENDING) -> None:
 
 
 def auto_approve(target_url: str) -> tuple[bool, str]:
-    """Auto-approve for unrestricted scanning - bypasses token requirement."""
     return True, "auto-approved (unrestricted mode)"

@@ -1,7 +1,3 @@
-"""Web crawler for VAPT discovery phase.
-
-Discovers endpoints, forms, parameters, and attack surface.
-"""
 from __future__ import annotations
 
 import re
@@ -35,7 +31,6 @@ class CrawlResult:
 
 
 class Crawler:
-    """Web application crawler for attack surface discovery."""
 
     def __init__(
         self,
@@ -54,7 +49,6 @@ class Crawler:
         self._technologies: set[str] = set()
 
     def crawl(self, start_url: str) -> CrawlResult:
-        """Crawl the target application starting from start_url."""
         self._queue.append((start_url, 0))
         errors: list[str] = []
 
@@ -85,7 +79,6 @@ class Crawler:
         )
 
     def _process_response(self, url: str, resp: Response) -> None:
-        """Process HTTP response to extract endpoints and technologies."""
         # Detect technologies from headers
         self._detect_technologies(resp.headers)
 
@@ -120,7 +113,6 @@ class Crawler:
                     self._endpoints.append(post_endpoint)
 
     def _detect_technologies(self, headers: dict[str, str]) -> None:
-        """Detect technologies from response headers."""
         server = headers.get("Server", "").lower()
         powered_by = headers.get("X-Powered-By", "").lower()
         generator = headers.get("X-Generator", "").lower()
@@ -147,7 +139,6 @@ class Crawler:
                 self._technologies.add(tech)
 
     def _extract_forms(self, html: str) -> list[dict[str, Any]]:
-        """Extract HTML forms from page content."""
         forms = []
         # Simple regex-based form extraction
         form_pattern = re.compile(r"<form[^>]*>(.*?)</form>", re.IGNORECASE | re.DOTALL)
@@ -187,13 +178,11 @@ class Crawler:
         return forms
 
     def _extract_parameters(self, url: str) -> list[str]:
-        """Extract query parameters from URL."""
         parsed = urlparse(url)
         params = urllib.parse.parse_qs(parsed.query)
         return list(params.keys())
 
     def _extract_links(self, base_url: str, html: str) -> None:
-        """Extract links from HTML and add to crawl queue."""
         # Simple link extraction
         link_pattern = re.compile(r'href\s*=\s*["\']([^"\']*)["\']', re.IGNORECASE)
 
@@ -212,6 +201,5 @@ class Crawler:
 
 
 def crawl_target(client: HttpClient, start_url: str, max_depth: int = 3, max_pages: int = 100) -> CrawlResult:
-    """Convenience function to crawl a target."""
     crawler = Crawler(client, max_depth=max_depth, max_pages=max_pages)
     return crawler.crawl(start_url)
