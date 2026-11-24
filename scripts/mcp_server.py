@@ -268,6 +268,8 @@ def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         return h.start(arguments["argv"], mode, approved)
     if name == "vapt_get_command_output":
         return harness.DEFAULT_HARNESS.status(arguments["job_id"])
+    if name == "vapt_get_scope":
+        return vapt_scope()
     if name == "vapt_detect":
         return vapt_detect(arguments.get("target_url", ""), arguments.get("enforce_scope", False))
     if name == "request_exploit_approval":

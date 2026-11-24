@@ -1,9 +1,37 @@
+<<<<<<< Updated upstream
+=======
+"""Professional PDF report generation for VAPT assessments.
+
+Generates detailed, cybersecurity-specialist quality reports with:
+- Cover page with engagement details
+- Executive summary
+- Methodology & scope
+- Detailed findings per vulnerability class
+- Evidence & remediation
+- Appendices with raw data
+"""
+>>>>>>> Stashed changes
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 import json
+
+# ReportLab imports at module level for helper functions
+try:
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm, inch
+    from reportlab.platypus import (
+        Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+        PageBreak, KeepTogether, ListFlowable, ListItem
+    )
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
+    REPORTLAB_AVAILABLE = True
+except ImportError:
+    REPORTLAB_AVAILABLE = False
 
 
 # Vulnerability class descriptions for the report
@@ -17,7 +45,7 @@ VULN_CLASS_DETAILS = {
             "NoSQL Injection, and XML External Entity (XXE) Injection."
         ),
         "tests_performed": [
-            "SQL Injection: Tested authentication and search endpoints with SQL meta-characters (', \", OR 1=1, UNION SELECT) "
+            "SQL Injection: Tested authentication and search endpoints with SQL meta-characters (\', \", OR 1=1, UNION SELECT) "
             "to detect improper input sanitization in database queries.",
             "Command Injection: Tested ping, exec, shell, and diagnostic endpoints with command separators (;, |, &, &&, $()) "
             "to detect OS command execution via user input.",
@@ -111,7 +139,7 @@ VULN_CLASS_DETAILS = {
             "CORS Configuration: Tested with Origin: https://evil.com to detect over-permissive policies "
             "(wildcard *, reflected origin with credentials).",
             "Cookie Security: Verified Secure, HttpOnly, and SameSite attributes on session cookies.",
-            "JWT Algorithm Confusion: Tested acceptance of \'alg:none\' and \'alg:HS256\' with public key "
+            "JWT Algorithm Confusion: Tested acceptance of 'alg:none' and 'alg:HS256' with public key "
             "to detect algorithm confusion vulnerabilities.",
             "IDOR Testing: Tested authenticated access to object references (/api/users/1, /api/orders/2, etc.) "
             "to detect missing authorization checks.",
@@ -135,6 +163,7 @@ SEVERITY_COLORS = {
 
 
 def generate_pdf(assessment: dict[str, Any], output_dir: str | Path) -> str:
+<<<<<<< Updated upstream
     try:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4
@@ -295,6 +324,8 @@ SEVERITY_COLORS = {
 
 
 def generate_pdf(assessment: dict[str, Any], output_dir: str | Path) -> str:
+=======
+>>>>>>> Stashed changes
     """Generate a professional, comprehensive PDF report from assessment data."""
     if not REPORTLAB_AVAILABLE:
         raise RuntimeError("PDF generation requires reportlab; install it with: pip install reportlab")
@@ -380,6 +411,12 @@ def generate_pdf(assessment: dict[str, Any], output_dir: str | Path) -> str:
     story = []
     A4_WIDTH = A4[0] - 40 * mm
 
+<<<<<<< Updated upstream
+=======
+    # ============================================================
+    # COVER PAGE
+    # ============================================================
+>>>>>>> Stashed changes
     story.append(Spacer(1, 50 * mm))
     story.append(Paragraph("VULNERABILITY ASSESSMENT<br/>& PENETRATION TESTING REPORT", styles["CoverTitle"]))
     story.append(Spacer(1, 10 * mm))
@@ -408,6 +445,12 @@ def generate_pdf(assessment: dict[str, Any], output_dir: str | Path) -> str:
     story.append(cover_table)
     story.append(PageBreak())
 
+<<<<<<< Updated upstream
+=======
+    # ============================================================
+    # TABLE OF CONTENTS
+    # ============================================================
+>>>>>>> Stashed changes
     story.append(Paragraph("TABLE OF CONTENTS", styles["SectionHeader"]))
     story.append(Spacer(1, 4 * mm))
     toc_items = [
@@ -428,6 +471,12 @@ def generate_pdf(assessment: dict[str, Any], output_dir: str | Path) -> str:
         )))
     story.append(PageBreak())
 
+<<<<<<< Updated upstream
+=======
+    # ============================================================
+    # 1. EXECUTIVE SUMMARY
+    # ============================================================
+>>>>>>> Stashed changes
     story.append(Paragraph("1. EXECUTIVE SUMMARY", styles["SectionHeader"]))
     story.append(Spacer(1, 2 * mm))
 
@@ -492,6 +541,12 @@ def generate_pdf(assessment: dict[str, Any], output_dir: str | Path) -> str:
             ))
     story.append(PageBreak())
 
+<<<<<<< Updated upstream
+=======
+    # ============================================================
+    # 2. SCOPE & METHODOLOGY
+    # ============================================================
+>>>>>>> Stashed changes
     story.append(Paragraph("2. SCOPE & METHODOLOGY", styles["SectionHeader"]))
     story.append(Spacer(1, 2 * mm))
 
@@ -545,6 +600,12 @@ def generate_pdf(assessment: dict[str, Any], output_dir: str | Path) -> str:
     ))
     story.append(PageBreak())
 
+<<<<<<< Updated upstream
+=======
+    # ============================================================
+    # 3. FINDINGS SUMMARY
+    # ============================================================
+>>>>>>> Stashed changes
     story.append(Paragraph("3. FINDINGS SUMMARY", styles["SectionHeader"]))
     story.append(Spacer(1, 2 * mm))
 
@@ -587,6 +648,12 @@ def generate_pdf(assessment: dict[str, Any], output_dir: str | Path) -> str:
 
     story.append(PageBreak())
 
+<<<<<<< Updated upstream
+=======
+    # ============================================================
+    # 4. DETAILED FINDINGS
+    # ============================================================
+>>>>>>> Stashed changes
     story.append(Paragraph("4. DETAILED FINDINGS", styles["SectionHeader"]))
     story.append(Spacer(1, 2 * mm))
 
@@ -627,7 +694,11 @@ def generate_pdf(assessment: dict[str, Any], output_dir: str | Path) -> str:
     # ============================================================
     # 5. EVIDENCE & TECHNICAL DETAILS
     # ============================================================
+<<<<<<< Updated upstream
     story.append(Paragraph("5. EVIMDENCE & TECHNICAL DETAILS", styles["SectionHeader"]))
+=======
+    story.append(Paragraph("5. EVIDENCE & TECHNICAL DETAILS", styles["SectionHeader"]))
+>>>>>>> Stashed changes
     story.append(Spacer(1, 2 * mm))
 
     for finding in findings:
@@ -648,6 +719,12 @@ def generate_pdf(assessment: dict[str, Any], output_dir: str | Path) -> str:
 
     story.append(PageBreak())
 
+<<<<<<< Updated upstream
+=======
+    # ============================================================
+    # 6. REMEDIATION GUIDANCE
+    # ============================================================
+>>>>>>> Stashed changes
     story.append(Paragraph("6. REMEDIATION GUIDANCE", styles["SectionHeader"]))
     story.append(Spacer(1, 2 * mm))
 
@@ -690,7 +767,13 @@ def generate_pdf(assessment: dict[str, Any], output_dir: str | Path) -> str:
 
     story.append(PageBreak())
 
+<<<<<<< Updated upstream
 
+=======
+    # ============================================================
+    # APPENDIX A: SCAN CONFIGURATION
+    # ============================================================
+>>>>>>> Stashed changes
     story.append(Paragraph("APPENDIX A: SCAN CONFIGURATION", styles["SectionHeader"]))
     story.append(Spacer(1, 2 * mm))
 
@@ -723,6 +806,12 @@ def generate_pdf(assessment: dict[str, Any], output_dir: str | Path) -> str:
     story.append(config_table)
     story.append(PageBreak())
 
+<<<<<<< Updated upstream
+=======
+    # ============================================================
+    # APPENDIX B: RECONNAISSANCE DATA
+    # ============================================================
+>>>>>>> Stashed changes
     story.append(Paragraph("APPENDIX B: RECONNAISSANCE DATA", styles["SectionHeader"]))
     story.append(Spacer(1, 2 * mm))
 
@@ -755,6 +844,12 @@ def generate_pdf(assessment: dict[str, Any], output_dir: str | Path) -> str:
 
     story.append(PageBreak())
 
+<<<<<<< Updated upstream
+=======
+    # ============================================================
+    # APPENDIX C: TOOL OUTPUTS & ERRORS
+    # ============================================================
+>>>>>>> Stashed changes
     story.append(Paragraph("APPENDIX C: TOOL OUTPUTS & ERRORS", styles["SectionHeader"]))
     story.append(Spacer(1, 2 * mm))
 
@@ -766,6 +861,12 @@ def generate_pdf(assessment: dict[str, Any], output_dir: str | Path) -> str:
     else:
         story.append(Paragraph("No errors recorded during assessment.", styles["BodyJustified"]))
 
+<<<<<<< Updated upstream
+=======
+    # ============================================================
+    # FOOTER / GENERATED INFO
+    # ============================================================
+>>>>>>> Stashed changes
     story.append(Spacer(1, 15 * mm))
     story.append(Paragraph(
         f"<i>Report generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}</i>",
@@ -783,9 +884,12 @@ def generate_pdf(assessment: dict[str, Any], output_dir: str | Path) -> str:
 
 
 def _get_scan_type(assessment: dict[str, Any]) -> str:
+<<<<<<< Updated upstream
 
 
 def _get_scan_type(assessment: dict[str, Any]) -> str:
+=======
+>>>>>>> Stashed changes
     """Determine scan type from assessment data."""
     active = assessment.get("active", {})
     phases = active.get("phases", {})
