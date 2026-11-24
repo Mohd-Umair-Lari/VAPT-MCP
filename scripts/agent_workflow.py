@@ -1,7 +1,3 @@
-"""Small workflow for an agent or chat interface.
-
-Supports both gated (with approval) and unrestricted (auto-approve) modes.
-"""
 from __future__ import annotations
 
 from typing import Any

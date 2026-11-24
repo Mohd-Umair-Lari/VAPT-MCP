@@ -117,22 +117,22 @@ def run(config: dict[str, Any], scope: Scope | None = None, client: HttpClient |
         pending = list(EXPLOIT_IDS)
         audit.record("exploit_blocked", {"target": scope.base_url(), "reason": reason})
     if want_exploit and approved:
-            audit.record("phase_exploit_start", {"target": scope.base_url()})
-            try:
-                # Run generic exploits - either all or single action
-                if exploit_action and exploit_action in ALL_EXPLOIT_ACTIONS:
-                    # Single action execution
-                    exploit_categories = [exploit_action]
-                else:
-                    exploit_categories = active.get("exploit_categories", ["injection", "xss", "ssrf", "path_traversal", "redirect", "config"])
-                endpoints = active.get("exploit_endpoints", None)
-                generic_findings = active_vapt.exploit_generic(client, True, categories=exploit_categories, endpoints=endpoints)
-                findings.extend(generic_findings)
-            except Exception as error:
-                assessment.errors.append(f"exploit phase error: {error}")
-            if approval_token and approval_token != "auto-approved":
-                approval.consume(approval_token)
-            audit.record("phase_exploit_done", {"target": scope.base_url(), "findings": len(findings)})
+        audit.record("phase_exploit_start", {"target": scope.base_url()})
+        try:
+            # Run generic exploits - either all or single action
+            if exploit_action and exploit_action in ALL_EXPLOIT_ACTIONS:
+                # Single action execution
+                exploit_categories = [exploit_action]
+            else:
+                exploit_categories = active.get("exploit_categories", ["injection", "xss", "ssrf", "path_traversal", "redirect", "config"])
+            endpoints = active.get("exploit_endpoints", None)
+            generic_findings = active_vapt.exploit_generic(client, True, categories=exploit_categories, endpoints=endpoints)
+            findings.extend(generic_findings)
+        except Exception as error:
+            assessment.errors.append(f"exploit phase error: {error}")
+        if approval_token and approval_token != "auto-approved":
+            approval.consume(approval_token)
+        audit.record("phase_exploit_done", {"target": scope.base_url(), "findings": len(findings)})
 
     assessment.findings = findings
     assessment.status = "completed" if not assessment.errors else "completed_with_errors"

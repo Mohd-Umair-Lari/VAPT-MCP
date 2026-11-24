@@ -1,8 +1,3 @@
-"""Scope definition for VAPT assessments.
-
-A Scope defines the scheme/host/port boundary for a target.
-For unrestricted scanning, scope enforcement can be disabled.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -10,7 +5,7 @@ from urllib.parse import urlparse
 
 
 class ScopeViolation(Exception):
-    """Raised when a request would leave the authorized scope (when enforced)."""
+    pass
 
 
 @dataclass(frozen=True)
@@ -22,13 +17,11 @@ class Scope:
 
     @classmethod
     def from_config(cls, target: dict) -> "Scope":
-        """Create a Scope from a target config dict with scheme, host, port."""
         return cls(target["scheme"], target["host"], int(target["port"]), 
                    target.get("enforce_scope", False))
 
     @classmethod
     def from_url(cls, url: str, enforce: bool = False) -> "Scope":
-        """Parse a Scope from a base URL (scheme://host:port)."""
         parsed = urlparse(url)
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
             raise ValueError(f"Invalid target URL: {url}")
@@ -37,7 +30,6 @@ class Scope:
 
     @classmethod
     def for_testing(cls, host: str, port: int, scheme: str = "http") -> "Scope":
-        """Only for offline unit tests against a local mock server."""
         return cls(scheme, host, port, enforce=False)
 
     def base_url(self) -> str:
@@ -61,7 +53,6 @@ class Scope:
 
 
 def assert_config_authorized(target: dict) -> None:
-    """Validate that a target config has required fields (no hardcoded allowlist)."""
     required = {"scheme", "host", "port"}
     missing = required - set(target.keys())
     if missing:

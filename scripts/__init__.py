@@ -1,9 +1,3 @@
-"""Runtime modules for the VAPT agent.
-
-The modules retain simple top-level imports so they can also be launched as
-standalone scripts. Add this directory to the import path when loaded as a
-package entry point.
-"""
 from pathlib import Path
 import sys
 

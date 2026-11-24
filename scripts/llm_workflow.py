@@ -1,10 +1,3 @@
-"""Provider-neutral interactive workflow for an LLM-controlled VAPT session.
-
-The model supplies intent and receives structured state. This module enforces
-the workflow rules; it does not execute arbitrary model-generated code.
-
-Supports both gated (with approval) and unrestricted (auto-approve) modes.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -24,7 +17,6 @@ class Session:
 
 
 class VaptSession:
-    """State machine used by a chat/LLM host."""
 
     def __init__(self, session_id: str = "local-session") -> None:
         self.session = Session(session_id)
