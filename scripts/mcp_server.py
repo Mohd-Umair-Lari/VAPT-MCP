@@ -1,8 +1,3 @@
-"""Real stdio MCP server for the VAPT project.
-
-The server implements the MCP JSON-RPC tool surface needed by Hermes. 
-Supports unrestricted scanning with optional approval gates.
-"""
 from __future__ import annotations
 
 import json
@@ -63,7 +58,6 @@ def result_text(value: Any) -> dict[str, Any]:
 
 
 def _load_scope() -> Scope:
-    """Load the Scope from config.json."""
     config = json.loads((Path(__file__).resolve().parent.parent / "config.json").read_text(encoding="utf-8"))
     return Scope.from_config(config["target"])
 
@@ -153,7 +147,6 @@ def vapt_crawl(target_url: str = "", max_depth: int = 3, max_pages: int = 100, e
 
 def vapt_scan_cidr(cidr: str = "", ports: str = "80,443,8080,8443", modules: str = "http,tls,ssh", 
                    rate: int = 100, concurrent: int = 50, output_format: str = "json") -> dict[str, Any]:
-    """Run internet-wide CIDR/ASN scanning with multiple modules."""
     import subprocess
     import tempfile
     import os

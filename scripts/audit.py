@@ -1,4 +1,3 @@
-"""Append-only local audit log of active actions (JSON lines)."""
 from __future__ import annotations
 
 import json

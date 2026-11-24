@@ -1,4 +1,3 @@
-"""Local, opt-in assessment comparison helpers for Phase 11."""
 from __future__ import annotations
 
 import json

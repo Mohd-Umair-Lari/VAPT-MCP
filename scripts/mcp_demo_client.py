@@ -1,12 +1,3 @@
-"""Tiny MCP client to prove the VAPT server works end to end.
-
-Run it from the project directory:
-
-    python mcp_demo_client.py
-
-It spawns mcp_server.py over stdio, lists the tools, and calls vapt_scope
-(which needs no network). Add a vapt_detect call once your lab VM is up.
-"""
 import asyncio
 import sys
 from pathlib import Path

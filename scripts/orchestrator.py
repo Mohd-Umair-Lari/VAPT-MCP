@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 """Full VAPT pipeline: recon -> detect -> (approved) exploit -> report.
 
 Honors the 'auto-recon, approve attacks' posture: recon and detection run
@@ -7,6 +8,8 @@ Reuses vapt_mvp's Assessment/report writer and history for a consistent record.
 Supports unrestricted scanning with optional approval gates and single-action execution.
 Auto-generates professional PDF reports after every scan.
 """
+=======
+>>>>>>> Stashed changes
 from __future__ import annotations
 
 import json

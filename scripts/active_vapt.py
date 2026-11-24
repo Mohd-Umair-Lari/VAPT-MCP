@@ -537,7 +537,6 @@ PATH_PATTERNS = {
 
 
 def get_dynamic_recon_paths(base_url: str, technology: str | None = None) -> list[str]:
-    """Generate dynamic recon paths based on target URL and detected technology."""
     paths = list(UNIVERSAL_RECON_PATHS)
     
     parsed = urlparse(base_url)
@@ -575,7 +574,6 @@ def get_dynamic_recon_paths(base_url: str, technology: str | None = None) -> lis
 
 
 def detect_technology(headers: dict[str, str], body: str = "") -> str | None:
-    """Detect technology stack from headers and body content."""
     server = headers.get("Server", "").lower()
     powered_by = headers.get("X-Powered-By", "").lower()
     generator = headers.get("X-Generator", "").lower()
@@ -643,7 +641,6 @@ def _require(approved: bool) -> None:
 
 
 def _probe_technology(client: HttpClient) -> str | None:
-    """Quick probe to detect technology stack."""
     try:
         resp = client.get("/")
         return detect_technology(resp.headers, resp.text)
@@ -652,7 +649,6 @@ def _probe_technology(client: HttpClient) -> str | None:
 
 
 def _get_base_url(client: HttpClient) -> str:
-    """Get base URL from client, with fallback."""
     if hasattr(client, 'scope') and hasattr(client.scope, 'base_url'):
         return client.scope.base_url()
     return "http://unknown/"
@@ -660,7 +656,6 @@ def _get_base_url(client: HttpClient) -> str:
 
 # --- Recon (auto) --------------------------------------------------------
 def recon(client: HttpClient) -> list[dict[str, Any]]:
-    """Perform reconnaissance using dynamic paths based on target."""
     # First, probe to detect technology
     technology = _probe_technology(client)
     
@@ -679,13 +674,11 @@ def recon(client: HttpClient) -> list[dict[str, Any]]:
 
 
 def deep_crawl(client: HttpClient, max_depth: int = 3, max_pages: int = 100) -> CrawlResult:
-    """Perform deep crawling to discover attack surface."""
     return crawl_target(client, client.scope.base_url() + "/", max_depth=max_depth, max_pages=max_pages)
 
 
 # --- Detection (auto, low impact) ---------------------------------------
 def detect_sql_injection(client: HttpClient) -> Finding | None:
-    """Generic SQL injection detection."""
     test_endpoints = ["/login", "/search", "/api/users", "/api/products", "/"]
     for endpoint in test_endpoints:
         try:
@@ -702,7 +695,6 @@ def detect_sql_injection(client: HttpClient) -> Finding | None:
 
 
 def detect_reflected_input(client: HttpClient) -> Finding | None:
-    """Generic reflected input detection (XSS precursor)."""
     test_endpoints = ["/search", "/q", "/api/search", "/"]
     for endpoint in test_endpoints:
         try:
@@ -719,7 +711,6 @@ def detect_reflected_input(client: HttpClient) -> Finding | None:
 
 
 def detect_ssrf(client: HttpClient) -> Finding | None:
-    """Generic SSRF detection."""
     test_endpoints = ["/fetch", "/proxy", "/api/fetch", "/webhook", "/import"]
     for endpoint in test_endpoints:
         try:
@@ -751,7 +742,6 @@ def exploit_sql_login_bypass(client: HttpClient, approved: bool) -> tuple[Findin
 
 def exploit_generic(client: HttpClient, approved: bool, categories: list[str] | None = None,
                     endpoints: list[str] | None = None) -> list[Finding]:
-    """Run generic exploit modules against the target."""
     _require(approved)
     return run_exploits(client, categories=categories, endpoints=endpoints)
 
@@ -792,7 +782,6 @@ def exploit_jwt_none(client: HttpClient, approved: bool, email: str = "admin@exa
 
 def exploit_idor(client: HttpClient, approved: bool, token: str | None,
                  object_ids: list[int] | None = None) -> Finding | None:
-    """Generic IDOR test - tries to access other users' resources."""
     _require(approved)
     if not token:
         return None

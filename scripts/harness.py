@@ -1,9 +1,3 @@
-"""Constrained Kali command harness for VAPT assessments.
-
-Commands are explicit argv lists, never shell strings. Extended tool allowlist
-for comprehensive scanning. Network commands can target any host in unrestricted mode.
-Active verification is optional - controlled by approval mode.
-"""
 from __future__ import annotations
 
 import subprocess
@@ -53,10 +47,6 @@ BLOCKED_TOKENS = {"rm", "shutdown", "reboot", "mkfs", "dd", "fdisk", "parted", "
 
 
 def _extract_target_from_argv(argv: list[str], tool: str) -> list[str]:
-    """Extract target host:port from command arguments for validation.
-    
-    Returns list of target strings found in the command.
-    """
     targets = []
     if tool == "nmap":
         # nmap: target is typically the last argument, or after -p

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Non-intrusive Phase 1/2 VAPT assessment for the authorized lab target."""
 from __future__ import annotations
 import argparse, ipaddress, json, socket, sys, urllib.error, urllib.request
 from dataclasses import asdict, dataclass, field
@@ -67,13 +66,6 @@ def load_config(path: Path) -> dict[str, Any]:
     return config
 
 def config_for_passive_url(url: str, allow_private: bool = False) -> dict[str, Any]:
-    """Build a one-run passive config for a public HTTP(S) URL.
-    
-    Args:
-        url: Target URL (scheme://host:port)
-        allow_private: If True, allow private IP ranges (for internal testing).
-                       Default False for internet-wide safety.
-    """
     from urllib.parse import urlparse
     parsed = urlparse(url.strip())
     if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
@@ -105,7 +97,6 @@ def assess_headers(headers: dict[str, str]) -> list[Finding]:
     return findings
 
 def assess_phase3(headers: dict[str, str], recon: list[dict[str, Any]]) -> list[Finding]:
-    """Perform passive checks using only the already collected response data."""
     findings: list[Finding] = []
     if headers.get("Access-Control-Allow-Origin", "").strip() == "*":
         findings.append(Finding(
@@ -129,7 +120,6 @@ def assess_phase3(headers: dict[str, str], recon: list[dict[str, Any]]) -> list[
     return findings
 
 def assess_phase4(headers: dict[str, str], final_url: str, requested_url: str) -> list[Finding]:
-    """Passive checks for cookies, redirects, and advertised HTTP methods."""
     findings: list[Finding] = []
     cookie = headers.get("Set-Cookie", "")
     if cookie and "secure" not in cookie.lower():
